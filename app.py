@@ -146,7 +146,7 @@ DECADES = {"2020s": ("2020-01-01", "2029-12-31"), "2010s": ("2010-01-01", "2019-
 SURPRISE_VIBES = ["mind-bending", "tearjerker", "funny but sad", "action-packed", "slow burn", "feel-good", "dark and gritty", "visually stunning", "twist ending", "nostalgic"]
 
 # ==========================================
-# 💾 NEW: WATCHLIST LOGIC WITH LOCAL STORAGE
+# 💾 WATCHLIST LOGIC WITH LOCAL STORAGE
 # ==========================================
 localS = LocalStorage()
 
@@ -336,9 +336,23 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
 # ==========================================
 @st.dialog("Similar Movies", width="large")
 def show_similar_dialog(target_title):
-    st.markdown(f"### If you liked **{target_title}**, try these:")
+    col_title, col_slider, col_close = st.columns([2, 3, 1])
+    with col_title:
+        st.markdown(f"### Like **{target_title}**?")
+    with col_slider:
+        # 🚨 NEW: The Rating Limit slider for Similar Movies
+        min_rating = st.slider("Min Rating", 0.0, 10.0, 5.0, 0.5, key=f"sim_rating_{target_title}")
+    with col_close:
+        st.write("") # Spacing
+        # 🚨 NEW: An explicit Close button so we don't get stuck
+        if st.button("Close", key="close_sim_modal"):
+            st.session_state.similar_target = None
+            st.rerun()
+            
+    st.write("---")
+    
     with st.spinner("Finding matches..."):
-        candidates = fetch_discover("Both", [], [], 0.0, target_title)
+        candidates = fetch_discover("Both", [], [], min_rating, target_title)
         candidates = [m for m in candidates if target_title.lower() not in (m.get('title') or m.get('name') or '').lower()]
         
         if candidates:
@@ -381,6 +395,8 @@ def show_similar_dialog(target_title):
                                 toggle_watchlist(m_id, t, poster_url, rt, p_type)
                                 st.rerun()
                     st.divider()
+            else:
+                st.warning("No recommendations found for that rating limit.")
 
 @st.dialog("Details", width="large")
 def show_details(m, media_type):
@@ -409,7 +425,10 @@ def show_details(m, media_type):
             if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                 toggle_watchlist(m['id'], title, poster, rating, p_type)
         with c3:
-            st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,), width='stretch')
+            # 🚨 FIXED: Added st.rerun() so the Details popup closes and the Similar popup can open!
+            if st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", width='stretch'):
+                st.session_state.similar_target = title
+                st.rerun()
 
 # ==========================================
 # SESSION STATE CALLBACKS
@@ -694,5 +713,4 @@ with tab_watchlist:
 # ==========================================
 if st.session_state.get("similar_target"):
     target = st.session_state.similar_target
-    st.session_state.similar_target = None
     show_similar_dialog(target)
