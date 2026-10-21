@@ -7,6 +7,7 @@ from datetime import date
 from dotenv import load_dotenv
 from openai import OpenAI
 from streamlit_local_storage import LocalStorage
+import streamlit.components.v1 as components
 
 # 1. Load the secret keys
 load_dotenv()
@@ -26,7 +27,7 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES SO THEY DON'T BLOCK BUTTONS */
+    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -84,7 +85,7 @@ st.markdown("""
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
-    /* Title clamping (keeps buttons perfectly aligned) */
+    /* Title clamping */
     .tv-title { 
         font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
@@ -114,7 +115,7 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
     
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS 📱             */
+    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)     */
     /* ========================================== */
     @media (max-width: 768px) {
         /* Header stacking */
@@ -129,7 +130,7 @@ st.markdown("""
         }
         h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
         
-        /* 2 Column Grid */
+        /* 🚨 2 COLUMN GRID - ENFORCED 🚨 */
         div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
@@ -175,32 +176,6 @@ st.markdown("""
             margin-bottom: 15px !important;
             align-self: center !important;
         }
-        
-        /* 🚨 FLOATING HAMBURGER MENU CSS 🚨 */
-        .fab-container { position: fixed; bottom: 20px; right: 20px; z-index: 100000; }
-        .fab-btn {
-            width: 60px; height: 60px; background: #ff4b4b; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4); cursor: pointer;
-        }
-        .fab-menu {
-            position: absolute; bottom: 70px; right: 0;
-            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            padding: 10px; display: flex; flex-direction: column; gap: 8px;
-            opacity: 0; pointer-events: none; transform: translateY(10px);
-            transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        #fab-toggle:checked ~ .fab-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
-        #fab-toggle { display: none; }
-        .fab-menu a {
-            color: white; text-decoration: none; padding: 10px 20px;
-            background: #222; border-radius: 8px; text-align: center;
-            font-weight: 600; font-size: 0.9rem; white-space: nowrap;
-        }
-        .fab-menu a:active { background: #ff4b4b; }
-    }
-    @media (min-width: 769px) {
-        .fab-container { display: none !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -541,31 +516,97 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# 🚨 FLOATING HAMBURGER MENU 🚨
-# ==========================================
-st.markdown('<div id="tabs-top"></div>', unsafe_allow_html=True)
-st.markdown("""
-<div class="fab-container">
-    <input type="checkbox" id="fab-toggle">
-    <label for="fab-toggle" class="fab-btn">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-    </label>
-    <div class="fab-menu">
-        <a href="#tabs-top">🏠 Trending</a>
-        <a href="#tabs-top">🔍 Search</a>
-        <a href="#tabs-top">🗓️ Upcoming</a>
-        <a href="#tabs-top">✨ Vibe Matcher</a>
-        <a href="#tabs-top">❤️ Watchlist</a>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ==========================================
 # TABS
 # ==========================================
 tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
     "Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"
 ])
+
+# ==========================================
+# 🚨 THE JAVASCRIPT FLOATING MENU (ACTUALLY CLICKS TABS)
+# ==========================================
+components.html("""
+<script>
+    // Function to simulate clicking Streamlit's tab buttons
+    function clickTab(index) {
+        const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+        if (tabs && tabs[index]) {
+            tabs[index].click();
+        }
+        // Close the menu after clicking
+        const toggle = window.parent.document.getElementById('fab-checkbox');
+        if(toggle) toggle.checked = false;
+    }
+</script>
+
+<style>
+    @media (max-width: 768px) {
+        .fab-wrapper {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999999;
+            font-family: 'Inter', sans-serif;
+        }
+        .fab-btn {
+            width: 60px; height: 60px;
+            background-color: #ff4b4b;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .fab-btn:active { transform: scale(0.95); }
+        .fab-btn svg { width: 28px; height: 28px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        
+        .fab-menu {
+            position: absolute;
+            bottom: 75px; right: 0;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 10px;
+            display: flex; flex-direction: column; gap: 8px;
+            opacity: 0; pointer-events: none; transform: translateY(10px);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            min-width: 150px;
+        }
+        #fab-checkbox:checked ~ .fab-menu {
+            opacity: 1; pointer-events: auto; transform: translateY(0);
+        }
+        #fab-checkbox { display: none; }
+        
+        .fab-menu a {
+            display: flex; align-items: center; gap: 10px;
+            color: white; text-decoration: none;
+            padding: 12px 16px; border-radius: 8px;
+            font-weight: 600; font-size: 0.95rem;
+            background: #222;
+            transition: background 0.2s;
+        }
+        .fab-menu a:active { background: #ff4b4b; color: white; }
+    }
+    @media (min-width: 769px) {
+        .fab-wrapper { display: none !important; }
+    }
+</style>
+
+<div class="fab-wrapper">
+    <input type="checkbox" id="fab-checkbox">
+    <label for="fab-checkbox" class="fab-btn">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </label>
+    <div class="fab-menu">
+        <a href="#" onclick="clickTab(0); return false;">🏠 Trending</a>
+        <a href="#" onclick="clickTab(1); return false;">🔍 Search</a>
+        <a href="#" onclick="clickTab(2); return false;">🗓️ Upcoming</a>
+        <a href="#" onclick="clickTab(3); return false;">✨ Vibe Matcher</a>
+        <a href="#" onclick="clickTab(4); return false;">❤️ Watchlist</a>
+    </div>
+</div>
+""", height=0, width=0)
 
 # ==========================================
 # TAB 1: TRENDING
