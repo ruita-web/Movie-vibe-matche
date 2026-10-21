@@ -87,8 +87,8 @@ st.markdown("""
     .movie-card:hover { border-color: rgba(255, 75, 75, 0.4); }
     
     /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 30px; justify-content: center; border-bottom: 1px solid #222; padding-bottom: 10px;}
-    .stTabs [data-baseweb="tab"] { font-size: 1.1rem; font-weight: 600; color: #888; }
+    .stTabs [data-baseweb="tab-list"] { gap: 20px; justify-content: center; border-bottom: 1px solid #222; padding-bottom: 10px;}
+    .stTabs [data-baseweb="tab"] { font-size: 1.05rem; font-weight: 600; color: #888; }
     .stTabs [aria-selected="true"] { color: #ff4b4b !important; }
     
     /* Inputs & Selectboxes */
@@ -228,10 +228,13 @@ def get_credits(media_id, media_type):
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        directors = [crew['name'] for crew in data.get('crew', []) if crew.get('job') == 'Director']
-        director_str = directors[0] if directors else "Unknown"
+        
+        # Look for Director first, then Creator (for TV shows)
+        creators = [crew['name'] for crew in data.get('crew', []) if crew.get('job') in ['Director', 'Creator', 'Executive Producer']]
+        creator_str = creators[0] if creators else "Unknown"
+        
         cast = [actor['name'] for actor in data.get('cast', [])[:3]]
-        return director_str, ", ".join(cast) if cast else "Unknown"
+        return creator_str, ", ".join(cast) if cast else "Unknown"
     except:
         return "Unknown", "Unknown"
 
@@ -265,6 +268,16 @@ def search_media(query):
         return [r for r in response.json().get("results", []) if r.get('media_type') in ['movie', 'tv']]
     except:
         return []
+
+def fetch_full_details(media_id, media_type):
+    try:
+        url = f"https://api.themoviedb.org/3/{media_type}/{media_id}?api_key={TMDB_API_KEY}"
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+    except:
+        pass
+    return None
 
 def fetch_discover(media_type, genres, decades, min_rating, vibe=""):
     try:
@@ -336,7 +349,6 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
 # ==========================================
 @st.dialog("Similar Movies", width="large")
 def show_similar_dialog(target_title):
-    # Top row with Title, Slider, and Close Button
     col_title, col_slider, col_close = st.columns([2, 3, 1])
     with col_title:
         st.markdown(f"### Like **{target_title}**?")
@@ -345,7 +357,6 @@ def show_similar_dialog(target_title):
     with col_close:
         st.write("")
         st.write("")
-        # 🚨 THE FIX: This button correctly clears the state and closes the popup
         if st.button("❌ Close", key="close_sim_modal", width='stretch'):
             st.session_state.similar_target = None
             st.rerun()
@@ -412,7 +423,7 @@ def show_details(m, media_type):
         st.markdown(f"## {title}")
         st.markdown(f"⭐ **{rating}**")
         director, cast = get_credits(m['id'], p_type)
-        st.markdown(f"🎬 **Dir:** {director} | 🎭 **Cast:** {cast}")
+        st.markdown(f"🎬 **Dir/Creator:** {director} | 🎭 **Cast:** {cast}")
         st.write(m.get('overview', 'No overview available.'))
         providers = get_watch_providers(m['id'], p_type)
         st.info(f"**Where to Watch ({COUNTRIES[st.session_state.region]}):** {providers}")
@@ -426,7 +437,6 @@ def show_details(m, media_type):
             if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                 toggle_watchlist(m['id'], title, poster, rating, p_type)
         with c3:
-            # 🚨 THE FIX: We set the target and rerun. The Details dialog closes, and the Similar dialog opens.
             if st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", width='stretch'):
                 st.session_state.similar_target = title
                 st.rerun()
@@ -448,9 +458,9 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# TABS
+# TABS (Added Search Tab!)
 # ==========================================
-tab_home, tab_upcoming, tab_search, tab_watchlist = st.tabs(["Trending", "Upcoming", "Vibe Matcher", "Watchlist"])
+tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs(["Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"])
 
 # ==========================================
 # TAB 1: TRENDING
@@ -501,7 +511,47 @@ with tab_home:
             st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 2: UPCOMING
+# TAB 2: SEARCH DIRECT
+# ==========================================
+with tab_search_direct:
+    st.markdown("### 🔍 Search the Database")
+    st.write("Type the name of a specific movie or TV show to see details, watch the trailer, or save it.")
+    search_query = st.text_input("Search for a specific title...", placeholder="e.g., 'Spider-Man', 'The Office', 'Inception'")
+    
+    if search_query:
+        with st.spinner("Searching..."):
+            results = search_media(search_query)
+            if not results:
+                st.warning("No results found. Try checking the spelling.")
+            else:
+                for i, m in enumerate(results[:10]): # Show top 10 results
+                    if i % 5 == 0: cols = st.columns(5)
+                    with cols[i % 5]:
+                        st.markdown('<div class="tv-card">', unsafe_allow_html=True)
+                        poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
+                        st.image(poster, width='stretch')
+                        
+                        title = m.get('title') or m.get('name')
+                        rating = f"{m.get('vote_average', 0):.1f}" if m.get('vote_average') else "N/A"
+                        p_type = m.get('media_type')
+                        
+                        st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{title}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {rating}</div>", unsafe_allow_html=True)
+                        
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            if st.button("", key=f"i_srch_{m['id']}_{i}", icon=":material/info:", help="Details"):
+                                show_details(m, p_type)
+                        with c2:
+                            is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
+                            if st.button("", key=f"s_srch_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
+                                toggle_watchlist(m['id'], title, poster, rating, p_type)
+                        with c3:
+                            st.button("", key=f"sim_srch_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,))
+                        st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# TAB 3: UPCOMING
 # ==========================================
 with tab_upcoming:
     st.text_input("Search any future movie...", placeholder="e.g., 'Avengers Doomsday'", key="up_search")
@@ -556,7 +606,7 @@ with tab_upcoming:
             st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 3: VIBE MATCHER
+# TAB 4: VIBE MATCHER
 # ==========================================
 with tab_search:
     with st.expander("🔍 Filters & Options", expanded=False):
@@ -624,7 +674,7 @@ with tab_search:
                 providers_text = get_watch_providers(media_id, p_type)
                 trailer_url = get_trailer_url(media_id, p_type)
                 director, cast = get_credits(media_id, p_type)
-                credits_html = f"<p style='color: #aaa; font-size: 0.95rem; margin-top: -5px; margin-bottom: 15px;'>🎬 <b>Dir:</b> {director} | 🎭 <b>Cast:</b> {cast}</p>"
+                credits_html = f"<p style='color: #aaa; font-size: 0.95rem; margin-top: -5px; margin-bottom: 15px;'>🎬 <b>Dir/Creator:</b> {director} | 🎭 <b>Cast:</b> {cast}</p>"
                 
                 if trailer_url:
                     trailer_html = f'<a href="{trailer_url}" target="_blank" class="trailer-btn">▶️ Watch Trailer</a>'
@@ -682,7 +732,7 @@ with tab_search:
                 st.info("This title isn't in the TMDB database yet, so streaming and trailer info is unavailable.")
 
 # ==========================================
-# TAB 4: WATCHLIST
+# TAB 5: WATCHLIST
 # ==========================================
 with tab_watchlist:
     if not st.session_state.watchlist:
@@ -708,6 +758,14 @@ with tab_watchlist:
                         toggle_watchlist(item['id'], item['title'], item['poster'], item['rating'], item['type'])
                 with c2:
                     st.button("", key=f"sim_w_{item['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(item['title'],))
+                with c3:
+                    if st.button("", key=f"info_w_{item['id']}_{i}", icon=":material/info:", help="Details"):
+                        with st.spinner("Loading details..."):
+                            full_data = fetch_full_details(item['id'], item['type'])
+                            if full_data:
+                                show_details(full_data, item['type'])
+                            else:
+                                st.error("Could not load details.")
 
 # ==========================================
 # 🚨 DIALOG TRIGGER
