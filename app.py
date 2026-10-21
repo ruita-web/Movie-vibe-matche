@@ -145,22 +145,18 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 🚨 FORCE 2 COLUMNS ONLY ON ROWS WITH IMAGES 🚨 */
-        /* Override Streamlit's default flex-direction: column */
+        /* 🚨 FORCE 2 COLUMNS USING GRID 🚨 */
         div[data-testid="stHorizontalBlock"]:has(img) {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            gap: 12px !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 15px !important;
             width: 100% !important;
         }
         
-        /* Target the columns inside the movie row and force them to 50% */
         div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
-            width: calc(50% - 6px) !important;
-            flex: 0 0 calc(50% - 6px) !important;
-            min-width: calc(50% - 6px) !important;
-            max-width: calc(50% - 6px) !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            padding: 0 !important;
         }
         
         /* Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
@@ -248,8 +244,8 @@ st.markdown("""
     @media (max-width: 768px) {
         .fab-container {
             position: fixed;
-            bottom: 25px;
-            right: 25px;
+            bottom: 80px; /* Moved up so it doesn't overlap the Streamlit crown */
+            right: 20px;
             z-index: 999999;
         }
         
