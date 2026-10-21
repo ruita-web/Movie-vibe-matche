@@ -27,7 +27,7 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES SO THEY DON'T BLOCK BUTTONS */
+    /* HIDE STREAMLIT LOGOS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -115,7 +115,7 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
     
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS 📱             */
+    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)     */
     /* ========================================== */
     @media (max-width: 768px) {
         /* 1. Header stacking */
@@ -131,32 +131,32 @@ st.markdown("""
         h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
         
         /* 2. STRICT 2 COLUMNS FOR MOVIE GRIDS */
-        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(.stButton)) {
+        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(button)) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 12px !important;
         }
-        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(.stButton)) > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(button)) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
         /* 3. Keep the 3 buttons horizontal */
-        div[data-testid="stHorizontalBlock"]:has(.stButton) {
+        div[data-testid="stHorizontalBlock"]:has(button) {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.stButton) > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:has(button) > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.stButton) .stButton > button {
+        div[data-testid="stHorizontalBlock"]:has(button) .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -522,7 +522,7 @@ tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
 ])
 
 # ==========================================
-# 🚨 THE JAVASCRIPT FLOATING MENU (CLICKS TABS)
+# 🚨 THE JAVASCRIPT FLOATING MENU (RENDER FIX)
 # ==========================================
 components.html("""
 <script>
@@ -537,12 +537,15 @@ components.html("""
 </script>
 
 <style>
+    /* Base styles for the wrapper, always present but hidden on desktop */
+    .fab-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: sans-serif; display: none; }
+    
     @media (max-width: 768px) {
-        .fab-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: sans-serif; }
+        .fab-wrapper { display: block !important; }
         .fab-btn {
             width: 60px; height: 60px; background-color: #ff4b4b; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4); cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6); cursor: pointer;
         }
         .fab-btn svg { width: 28px; height: 28px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
         
@@ -550,7 +553,7 @@ components.html("""
             position: absolute; bottom: 75px; right: 0; background: #1a1a1a; border: 1px solid #333;
             border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
             opacity: 0; pointer-events: none; transform: translateY(10px); transition: all 0.2s;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6); min-width: 150px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 160px;
         }
         #fab-checkbox:checked ~ .fab-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
         #fab-checkbox { display: none; }
@@ -561,7 +564,6 @@ components.html("""
         }
         .fab-menu a:active { background: #ff4b4b; color: white; }
     }
-    @media (min-width: 769px) { .fab-wrapper { display: none !important; } }
 </style>
 
 <div class="fab-wrapper">
@@ -577,7 +579,7 @@ components.html("""
         <a href="#" onclick="clickTab(4); return false;">❤️ Watchlist</a>
     </div>
 </div>
-""", height=0, width=0)
+""", height=100, width=100) # 🚨 FIX: Increased height/width so it doesn't collapse!
 
 # ==========================================
 # TAB 1: TRENDING
