@@ -35,7 +35,7 @@ st.markdown("""
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stBottom"] > div { display: none !important; }
 
-    .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 95% !important; }
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 4rem !important; max-width: 95% !important; }
 
     /* Pure Icon Buttons */
     .stButton > button {
@@ -113,50 +113,52 @@ st.markdown("""
     
     /* Trailer Button */
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
-    
+
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)     */
+    /* 📱 BULLETPROOF MOBILE CSS 📱             */
     /* ========================================== */
     @media (max-width: 768px) {
-        /* 1. Header stacking */
-        div[data-testid="stHorizontalBlock"]:has(h1) {
+        /* 1. Fix Header (Title on top, Region below) */
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(h1) > div {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) > div {
             width: 100% !important;
             min-width: 100% !important;
         }
         h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
-        
-        /* 2. STRICT 2 COLUMNS FOR MOVIE GRIDS */
-        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(button)) {
+
+        /* 2. STRICT 2 COLUMNS FOR ALL MOVIE GRIDS */
+        div[data-testid="stHorizontalBlock"]:not(:nth-of-type(1)) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 12px !important;
         }
-        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(button)) > div[data-testid="column"] {
+        
+        div[data-testid="stHorizontalBlock"]:not(:nth-of-type(1)) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
-        /* 3. Keep the 3 buttons horizontal */
-        div[data-testid="stHorizontalBlock"]:has(button) {
+        /* 3. Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
+            flex-wrap: nowrap !important;
             justify-content: space-between !important;
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(button) > div[data-testid="column"] {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(button) .stButton > button {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -522,51 +524,77 @@ tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
 ])
 
 # ==========================================
-# 🚨 THE JAVASCRIPT FLOATING MENU (RENDER FIX)
+# 🚨 FLOATING HAMBURGER MENU (WITH JS TAB CLICKING)
 # ==========================================
 components.html("""
 <script>
     function clickTab(index) {
-        const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+        const parentDoc = window.parent.document;
+        const tabs = parentDoc.querySelectorAll('button[data-baseweb="tab"]');
         if (tabs && tabs[index]) {
             tabs[index].click();
         }
-        const checkbox = window.parent.document.getElementById('fab-checkbox');
+        // Close menu after clicking
+        const checkbox = parentDoc.getElementById('fab-checkbox');
         if(checkbox) checkbox.checked = false;
     }
 </script>
 
 <style>
-    /* Base styles for the wrapper, always present but hidden on desktop */
-    .fab-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: sans-serif; display: none; }
-    
-    @media (max-width: 768px) {
-        .fab-wrapper { display: block !important; }
-        .fab-btn {
-            width: 60px; height: 60px; background-color: #ff4b4b; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6); cursor: pointer;
-        }
-        .fab-btn svg { width: 28px; height: 28px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-        
-        .fab-menu {
-            position: absolute; bottom: 75px; right: 0; background: #1a1a1a; border: 1px solid #333;
-            border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
-            opacity: 0; pointer-events: none; transform: translateY(10px); transition: all 0.2s;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.8); min-width: 160px;
-        }
-        #fab-checkbox:checked ~ .fab-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
-        #fab-checkbox { display: none; }
-        
-        .fab-menu a {
-            display: flex; align-items: center; gap: 10px; color: white; text-decoration: none;
-            padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; background: #222;
-        }
-        .fab-menu a:active { background: #ff4b4b; color: white; }
+    /* The outer container makes sure it floats and doesn't break the page */
+    .fab-container {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 999999;
+        font-family: sans-serif;
     }
+    
+    /* The circular button */
+    .fab-btn {
+        width: 60px; height: 60px;
+        background-color: #ff4b4b;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .fab-btn:hover { transform: scale(1.1); }
+    .fab-btn svg { width: 30px; height: 30px; stroke: white; stroke-width: 2.5; stroke-linecap: round; }
+    
+    /* The menu that pops up */
+    .fab-menu {
+        position: absolute;
+        bottom: 75px; right: 0;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 10px;
+        display: flex; flex-direction: column; gap: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        min-width: 160px;
+        opacity: 0; pointer-events: none; transform: translateY(10px);
+        transition: all 0.2s ease;
+    }
+    /* Show menu when checkbox is checked */
+    #fab-checkbox:checked ~ .fab-menu {
+        opacity: 1; pointer-events: auto; transform: translateY(0);
+    }
+    #fab-checkbox { display: none; }
+    
+    /* The menu links */
+    .fab-menu a {
+        color: white; text-decoration: none;
+        padding: 12px 16px; border-radius: 8px;
+        font-weight: 600; font-size: 0.95rem;
+        background: #222;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .fab-menu a:active { background: #ff4b4b; }
 </style>
 
-<div class="fab-wrapper">
+<div class="fab-container">
     <input type="checkbox" id="fab-checkbox">
     <label for="fab-checkbox" class="fab-btn">
         <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
@@ -579,7 +607,7 @@ components.html("""
         <a href="#" onclick="clickTab(4); return false;">❤️ Watchlist</a>
     </div>
 </div>
-""", height=100, width=100) # 🚨 FIX: Increased height/width so it doesn't collapse!
+""", height=0, width=0) # Height 0 prevents it from taking up space on the page
 
 # ==========================================
 # TAB 1: TRENDING
