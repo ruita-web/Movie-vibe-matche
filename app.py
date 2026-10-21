@@ -336,16 +336,17 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
 # ==========================================
 @st.dialog("Similar Movies", width="large")
 def show_similar_dialog(target_title):
+    # Top row with Title, Slider, and Close Button
     col_title, col_slider, col_close = st.columns([2, 3, 1])
     with col_title:
         st.markdown(f"### Like **{target_title}**?")
     with col_slider:
-        # 🚨 NEW: The Rating Limit slider for Similar Movies
         min_rating = st.slider("Min Rating", 0.0, 10.0, 5.0, 0.5, key=f"sim_rating_{target_title}")
     with col_close:
-        st.write("") # Spacing
-        # 🚨 NEW: An explicit Close button so we don't get stuck
-        if st.button("Close", key="close_sim_modal"):
+        st.write("")
+        st.write("")
+        # 🚨 THE FIX: This button correctly clears the state and closes the popup
+        if st.button("❌ Close", key="close_sim_modal", width='stretch'):
             st.session_state.similar_target = None
             st.rerun()
             
@@ -425,7 +426,7 @@ def show_details(m, media_type):
             if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                 toggle_watchlist(m['id'], title, poster, rating, p_type)
         with c3:
-            # 🚨 FIXED: Added st.rerun() so the Details popup closes and the Similar popup can open!
+            # 🚨 THE FIX: We set the target and rerun. The Details dialog closes, and the Similar dialog opens.
             if st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", width='stretch'):
                 st.session_state.similar_target = title
                 st.rerun()
