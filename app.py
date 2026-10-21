@@ -127,7 +127,7 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (FORCE 2 COLUMNS)*/
+    /* 📱 TWO COLUMNS - FORCED CSS HAMMER         */
     /* ========================================== */
     @media (max-width: 768px) {
         /* Hide the top Radio menu on mobile */
@@ -145,18 +145,24 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 🚨 FORCE 2 COLUMNS USING GRID 🚨 */
+        /* 🚨 THE 2-COLUMN FORCE 🚨 */
+        /* Target ONLY the rows that contain movie posters */
         div[data-testid="stHorizontalBlock"]:has(img) {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 15px !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            flex-direction: row !important;
+            gap: 10px !important;
             width: 100% !important;
         }
         
+        /* Force every column with a poster to be exactly 50% width minus the gap */
         div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
+            width: calc(50% - 5px) !important;
+            min-width: calc(50% - 5px) !important;
+            max-width: calc(50% - 5px) !important;
+            flex: 0 0 calc(50% - 5px) !important;
             padding: 0 !important;
+            margin: 0 !important;
         }
         
         /* Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
@@ -244,7 +250,7 @@ st.markdown("""
     @media (max-width: 768px) {
         .fab-container {
             position: fixed;
-            bottom: 80px; /* Moved up so it doesn't overlap the Streamlit crown */
+            bottom: 100px; /* Moved up to clear the Streamlit crown */
             right: 20px;
             z-index: 999999;
         }
