@@ -7,7 +7,6 @@ from datetime import date
 from dotenv import load_dotenv
 from openai import OpenAI
 from streamlit_local_storage import LocalStorage
-import streamlit.components.v1 as components
 
 # 1. Load the secret keys
 load_dotenv()
@@ -27,17 +26,36 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* 🚨 KILL THE STREAMLIT CROWN AND TOOLBAR */
-    header {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
+    /* KILL STREAMLIT BADGES */
     #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
     [data-testid="stBottom"] {display: none !important;}
     [data-testid="stDecoration"] {display: none !important;}
-    iframe[title="streamlit_local_storage.local_storage"] { display: none !important; }
 
     .block-container { padding-top: 1.5rem !important; padding-bottom: 5rem !important; max-width: 95% !important; }
+
+    /* Style the top Radio menu to look like Tabs */
+    div[data-testid="stRadio"] > div {
+        flex-direction: row !important;
+        gap: 20px !important;
+        justify-content: center !important;
+        border-bottom: 1px solid #222 !important;
+        padding-bottom: 10px !important;
+    }
+    div[data-testid="stRadio"] label {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #888 !important;
+        cursor: pointer !important;
+    }
+    div[data-testid="stRadio"] label[data-checked="true"] {
+        color: #ff4b4b !important;
+    }
+    /* Hide the radio circles */
+    div[data-testid="stRadio"] label > div:first-child { display: none !important; }
 
     /* Pure Icon Buttons */
     .stButton > button {
@@ -84,7 +102,7 @@ st.markdown("""
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
-    /* Title clamping to keep rows even */
+    /* Title clamping */
     .tv-title { 
         font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
@@ -94,11 +112,6 @@ st.markdown("""
     /* Rich Cards */
     .movie-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
     .movie-card:hover { border-color: rgba(255, 75, 75, 0.4); }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 15px; justify-content: flex-start; border-bottom: 1px solid #222; padding-bottom: 10px; overflow-x: auto; white-space: nowrap;}
-    .stTabs [data-baseweb="tab"] { font-size: 1rem; font-weight: 600; color: #888; }
-    .stTabs [aria-selected="true"] { color: #ff4b4b !important; }
     
     /* Inputs & Selectboxes */
     .stTextInput > div > div > input { background-color: #1a1a1a !important; color: white !important; border-radius: 8px !important; border: 1px solid #333 !important; padding: 12px 20px !important; }
@@ -114,33 +127,39 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (TARGETING IMG)  */
+    /* 📱 BULLETPROOF MOBILE CSS 📱             */
     /* ========================================== */
     @media (max-width: 768px) {
-        
-        /* 1. Fix Header (Title on top, Region below) */
-        div[data-testid="stHorizontalBlock"]:not(:has(img)):not(:has(button)) {
+        /* Hide the top Radio menu on mobile */
+        div[data-testid="stRadio"] { display: none !important; }
+
+        /* Fix Header */
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
             display: flex !important;
             flex-direction: column !important;
-            gap: 5px !important;
+            gap: 10px !important;
+        }
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) > div {
+            width: 100% !important;
+            min-width: 100% !important;
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 2. FORCE 2 COLUMNS ONLY FOR ROWS THAT CONTAIN IMAGES (Movie Grids) */
-        div[data-testid="stHorizontalBlock"]:has(img) {
+        /* STRICT 2 COLUMNS */
+        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 15px !important;
         }
         
-        div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
-        /* 3. Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) {
+        /* Keep the 3 buttons horizontal */
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
@@ -148,13 +167,13 @@ st.markdown("""
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) > div[data-testid="column"] {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) .stButton > button {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -162,7 +181,7 @@ st.markdown("""
             background: rgba(255,255,255,0.05) !important;
         }
 
-        /* 4. Stack Vibe Matcher rich cards */
+        /* Stack Vibe Matcher rich cards */
         .movie-card > div {
             flex-direction: column !important;
             align-items: flex-start !important;
@@ -189,6 +208,14 @@ COUNTRIES = {
 if "region" not in st.session_state:
     st.session_state.region = "US"
 
+# ==========================================
+# 🚨 NEW NAVIGATION SYSTEM (URL ROUTING)
+# ==========================================
+if "current_tab" not in st.session_state:
+    st.session_state.current_tab = st.query_params.get("tab", "Trending")
+
+tabs_list = ["Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"]
+
 # 3. Header & Top Bar Layout
 col_title, col_region = st.columns([3, 1])
 with col_title:
@@ -197,7 +224,89 @@ with col_title:
 with col_region:
     st.selectbox("Region", options=list(COUNTRIES.keys()), format_func=lambda x: f"🌍 {COUNTRIES[x]}", key="region", label_visibility="collapsed")
 
+# Desktop Navigation (Hidden on mobile)
+selected_tab = st.radio("Navigation", tabs_list, index=tabs_list.index(st.session_state.current_tab), horizontal=True, label_visibility="collapsed")
+
+if selected_tab != st.session_state.current_tab:
+    st.session_state.current_tab = selected_tab
+    st.query_params["tab"] = selected_tab
+    st.rerun()
+
 st.write("")
+
+# ==========================================
+# 🚨 THE FLOATING HAMBURGER MENU (PURE HTML)
+# ==========================================
+st.markdown("""
+<style>
+    /* Mobile Menu Styles */
+    @media (max-width: 768px) {
+        .fab-container {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 999999;
+        }
+        
+        .fab-details {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .fab-details > summary {
+            list-style: none; /* Hide default arrow */
+            width: 60px; height: 60px;
+            background-color: #ff4b4b;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6);
+            cursor: pointer;
+            color: white; font-size: 26px; font-weight: bold;
+        }
+        .fab-details > summary::-webkit-details-marker { display: none; }
+        
+        .fab-menu {
+            position: absolute;
+            bottom: 75px; right: 0;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 10px;
+            display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            min-width: 180px;
+        }
+        
+        .fab-menu a {
+            color: white; text-decoration: none;
+            padding: 12px 16px; border-radius: 8px;
+            font-weight: 600; font-size: 0.95rem;
+            background: #222;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .fab-menu a:active, .fab-menu a.active {
+            background: #ff4b4b;
+        }
+    }
+    /* Hide on desktop */
+    @media (min-width: 769px) {
+        .fab-container { display: none !important; }
+    }
+</style>
+
+<div class="fab-container">
+    <details class="fab-details">
+        <summary>☰</summary>
+        <div class="fab-menu">
+            <a href="?tab=Trending" target="_self" class="{% if st.session_state.current_tab == 'Trending' %}active{% endif %}">🏠 Trending</a>
+            <a href="?tab=Search" target="_self" class="{% if st.session_state.current_tab == 'Search' %}active{% endif %}">🔍 Search</a>
+            <a href="?tab=Upcoming" target="_self" class="{% if st.session_state.current_tab == 'Upcoming' %}active{% endif %}">🗓️ Upcoming</a>
+            <a href="?tab=Vibe Matcher" target="_self" class="{% if st.session_state.current_tab == 'Vibe Matcher' %}active{% endif %}">✨ Vibe Matcher</a>
+            <a href="?tab=Watchlist" target="_self" class="{% if st.session_state.current_tab == 'Watchlist' %}active{% endif %}">❤️ Watchlist</a>
+        </div>
+    </details>
+</div>
+""", unsafe_allow_html=True)
 
 # 4. TMDB Data
 GENRES = {"Action": 28, "Comedy": 35, "Horror": 27, "Sci-Fi": 878, "Drama": 18, "Thriller": 53, "Romance": 10749, "Animation": 16, "Mystery": 9648, "Fantasy": 14, "Adventure": 12, "Crime": 80}
@@ -205,7 +314,7 @@ DECADES = {"2020s": ("2020-01-01", "2029-12-31"), "2010s": ("2010-01-01", "2019-
 SURPRISE_VIBES = ["mind-bending", "tearjerker", "funny but sad", "action-packed", "slow burn", "feel-good", "dark and gritty", "visually stunning", "twist ending", "nostalgic"]
 
 # ==========================================
-# 💾 WATCHLIST LOGIC WITH LOCAL STORAGE
+# 💾 WATCHLIST LOGIC
 # ==========================================
 localS = LocalStorage()
 
@@ -513,102 +622,10 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# TABS
+# PAGE RENDERING (Conditional based on current_tab)
 # ==========================================
-tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
-    "Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"
-])
 
-# ==========================================
-# 🚨 FLOATING HAMBURGER MENU (REAL FIX)
-# ==========================================
-components.html("""
-<script>
-    function clickTab(index) {
-        const parentDoc = window.parent.document;
-        const tabs = parentDoc.querySelectorAll('button[data-baseweb="tab"]');
-        if (tabs && tabs[index]) {
-            tabs[index].click();
-        }
-        // Uncheck the box to close the menu
-        const checkbox = parentDoc.getElementById('fab-checkbox');
-        if(checkbox) checkbox.checked = false;
-    }
-</script>
-
-<style>
-    /* The container is fixed to the bottom right and has a high z-index */
-    .fab-container {
-        position: fixed;
-        bottom: 25px;
-        right: 25px;
-        z-index: 999999;
-        font-family: sans-serif;
-    }
-    
-    /* The red circular button */
-    .fab-btn {
-        width: 60px; height: 60px;
-        background-color: #ff4b4b;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6);
-        cursor: pointer;
-        transition: transform 0.2s ease;
-    }
-    .fab-btn:hover { transform: scale(1.1); }
-    .fab-btn svg { width: 30px; height: 30px; stroke: white; stroke-width: 2.5; stroke-linecap: round; }
-    
-    /* The popup menu */
-    .fab-menu {
-        position: absolute;
-        bottom: 75px; right: 0;
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 10px;
-        display: flex; flex-direction: column; gap: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-        min-width: 160px;
-        opacity: 0; pointer-events: none; transform: translateY(10px);
-        transition: all 0.2s ease;
-    }
-    /* Show menu when checkbox is checked */
-    #fab-checkbox:checked ~ .fab-menu {
-        opacity: 1; pointer-events: auto; transform: translateY(0);
-    }
-    #fab-checkbox { display: none; }
-    
-    /* Menu links */
-    .fab-menu a {
-        color: white; text-decoration: none;
-        padding: 12px 16px; border-radius: 8px;
-        font-weight: 600; font-size: 0.95rem;
-        background: #222;
-        display: flex; align-items: center; gap: 10px;
-    }
-    .fab-menu a:active { background: #ff4b4b; }
-</style>
-
-<div class="fab-container">
-    <input type="checkbox" id="fab-checkbox">
-    <label for="fab-checkbox" class="fab-btn">
-        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-    </label>
-    <div class="fab-menu">
-        <a href="#" onclick="clickTab(0); return false;">🏠 Trending</a>
-        <a href="#" onclick="clickTab(1); return false;">🔍 Search</a>
-        <a href="#" onclick="clickTab(2); return false;">🗓️ Upcoming</a>
-        <a href="#" onclick="clickTab(3); return false;">✨ Vibe Matcher</a>
-        <a href="#" onclick="clickTab(4); return false;">❤️ Watchlist</a>
-    </div>
-</div>
-""", height=100, width=100) # Height 100 ensures it renders, but it's fixed so it floats
-
-# ==========================================
-# TAB 1: TRENDING
-# ==========================================
-with tab_home:
+if st.session_state.current_tab == "Trending":
     st.markdown("### Trending Movies")
     for i, m in enumerate(fetch_trending("movie")):
         if i % 5 == 0: cols = st.columns(5)
@@ -653,10 +670,7 @@ with tab_home:
                 st.button("", key=f"sim_tv_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('name'),))
             st.markdown('</div>', unsafe_allow_html=True)
 
-# ==========================================
-# TAB 2: SEARCH DIRECT
-# ==========================================
-with tab_search_direct:
+elif st.session_state.current_tab == "Search":
     st.markdown("### 🔍 Search")
     search_query = st.text_input("Search for a specific title...", placeholder="e.g., 'Spider-Man', 'The Office'")
     
@@ -692,10 +706,7 @@ with tab_search_direct:
                             st.button("", key=f"sim_srch_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,))
                         st.markdown('</div>', unsafe_allow_html=True)
 
-# ==========================================
-# TAB 3: UPCOMING
-# ==========================================
-with tab_upcoming:
+elif st.session_state.current_tab == "Upcoming":
     st.text_input("Search any future movie...", placeholder="e.g., 'Avengers Doomsday'", key="up_search")
     if st.session_state.get("up_search"):
         res = search_media(st.session_state.up_search)
@@ -747,10 +758,7 @@ with tab_upcoming:
                 st.button("", key=f"sim_up_tv_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('name'),))
             st.markdown('</div>', unsafe_allow_html=True)
 
-# ==========================================
-# TAB 4: VIBE MATCHER
-# ==========================================
-with tab_search:
+elif st.session_state.current_tab == "Vibe Matcher":
     with st.expander("🔍 Filters & Options", expanded=False):
         col1, col2, col3 = st.columns([1, 2, 2])
         with col1: st.selectbox("Media", ["Movies", "TV Shows", "Both"], key="media_type")
@@ -873,10 +881,7 @@ with tab_search:
             else:
                 st.info("This title isn't in the TMDB database yet, so streaming and trailer info is unavailable.")
 
-# ==========================================
-# TAB 5: WATCHLIST
-# ==========================================
-with tab_watchlist:
+elif st.session_state.current_tab == "Watchlist":
     if not st.session_state.watchlist:
         st.info("Nothing saved yet. Hit the + icon anywhere.")
     else:
