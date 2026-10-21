@@ -28,7 +28,7 @@ st.markdown("""
     header {visibility: hidden;}
     footer {visibility: hidden;}
     
-    .block-container { padding-top: 2rem !important; padding-bottom: 2rem !important; max-width: 95% !important; }
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 5rem !important; max-width: 95% !important; }
 
     /* Pure Icon Buttons */
     .stButton > button {
@@ -78,7 +78,7 @@ st.markdown("""
     }
 
     /* Movie Cards */
-    .tv-card { background: transparent; border: none; margin-bottom: 20px; }
+    .tv-card { background: transparent; border: none; margin-bottom: 15px; }
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
@@ -105,16 +105,88 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
     .trailer-btn:hover { background: #ff7676; }
 
-    /* 📱 BULLETPROOF MOBILE CSS */
+    /* ========================================== */
+    /* 📱 BULLETPROOF MOBILE CSS 📱             */
+    /* ========================================== */
     @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 10px !important; }
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { width: calc(50% - 10px) !important; flex: 0 0 calc(50% - 10px) !important; min-width: calc(50% - 10px) !important; }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0 !important; }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { width: 33.33% !important; flex: 1 1 33.33% !important; min-width: 33.33% !important; padding: 0 2px !important; }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button { padding: 4px !important; font-size: 1.1rem !important; }
-        .movie-card > div { flex-direction: column !important; align-items: flex-start !important; }
-        .movie-card img { width: 100% !important; max-width: 200px !important; margin-bottom: 15px !important; align-self: center !important; }
+        /* Make posters 3 columns instead of 2 */
+        div[data-testid="stHorizontalBlock"] {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 8px !important;
+        }
+        
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            width: 100% !important;
+            min-width: 100% !important;
+            flex: none !important;
+        }
+        
+        /* Hide the text title inside the grid to save space on mobile */
+        .tv-card > div:nth-child(2) { display: none !important; }
+        
+        /* Adjust the 3-button row to fit */
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            gap: 2px !important;
+            margin-top: 4px !important;
+        }
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            width: 33.33% !important;
+            min-width: 33.33% !important;
+            flex: 1 !important;
+            padding: 0 !important;
+        }
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
+            padding: 2px !important;
+            font-size: 1rem !important;
+        }
+
+        /* Stack Vibe Matcher rich cards */
+        .movie-card > div {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+        }
+        .movie-card img {
+            width: 100% !important;
+            max-width: 150px !important;
+            margin-bottom: 10px !important;
+            align-self: center !important;
+        }
+
+        /* Make top header smaller */
         .top-bar-spacer { display: none !important; }
+        h1 { font-size: 1.8rem !important; }
+        
+        /* 🚨 FLOATING BOTTOM NAVIGATION BAR 🚨 */
+        .mobile-nav {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            background-color: #111;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 9999;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+        .mobile-nav a {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .mobile-nav a:hover { color: #ff4b4b; }
+        .mobile-nav a span { font-size: 1.2rem; }
+    }
+    /* Hide mobile nav on desktop */
+    @media (min-width: 769px) {
+        .mobile-nav { display: none; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -229,7 +301,6 @@ def get_credits(media_id, media_type):
         response.raise_for_status()
         data = response.json()
         
-        # Look for Director first, then Creator (for TV shows)
         creators = [crew['name'] for crew in data.get('crew', []) if crew.get('job') in ['Director', 'Creator', 'Executive Producer']]
         creator_str = creators[0] if creators else "Unknown"
         
@@ -458,9 +529,29 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# TABS (Added Search Tab!)
+# TABS (WITH ANCHORS FOR MOBILE NAV)
 # ==========================================
-tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs(["Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"])
+tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
+    "Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"
+])
+
+# Add IDs to the top of each tab so the floating nav can scroll to them
+st.markdown('<div id="top"></div>', unsafe_allow_html=True)
+st.markdown('<div id="search-tab"></div>', unsafe_allow_html=True)
+st.markdown('<div id="upcoming-tab"></div>', unsafe_allow_html=True)
+st.markdown('<div id="vibe-tab"></div>', unsafe_allow_html=True)
+st.markdown('<div id="watch-tab"></div>', unsafe_allow_html=True)
+
+# 🚨 THE FLOATING MOBILE NAVIGATION BAR 🚨
+st.markdown("""
+<div class="mobile-nav">
+    <a href="#top"><span>🏠</span>Home</a>
+    <a href="#search-tab"><span>🔍</span>Search</a>
+    <a href="#upcoming-tab"><span>🗓️</span>Upcoming</a>
+    <a href="#vibe-tab"><span>✨</span>Vibe</a>
+    <a href="#watch-tab"><span>❤️</span>Saved</a>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # TAB 1: TRENDING
