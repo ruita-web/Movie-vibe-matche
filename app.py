@@ -6,6 +6,7 @@ import random
 from datetime import date
 from dotenv import load_dotenv
 from openai import OpenAI
+from streamlit_local_storage import LocalStorage
 
 # 1. Load the secret keys
 load_dotenv()
@@ -104,56 +105,15 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
     .trailer-btn:hover { background: #ff7676; }
 
-    /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS 📱             */
-    /* ========================================== */
+    /* 📱 BULLETPROOF MOBILE CSS */
     @media (max-width: 768px) {
-        /* 1. Main grids: Force 2 columns */
-        div[data-testid="stHorizontalBlock"] {
-            flex-wrap: wrap !important;
-            gap: 10px !important;
-        }
-        
-        /* 2. Make columns 50% width */
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            width: calc(50% - 10px) !important;
-            flex: 0 0 calc(50% - 10px) !important;
-            min-width: calc(50% - 10px) !important;
-        }
-
-        /* 3. Fix the nested 3-button rows inside movie cards (Keep them horizontal) */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
-            flex-wrap: nowrap !important;
-            gap: 0 !important;
-        }
-        
-        /* 4. Make the 3 buttons take exactly 1/3rd of the space */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            width: 33.33% !important;
-            flex: 1 1 33.33% !important;
-            min-width: 33.33% !important;
-            padding: 0 2px !important;
-        }
-        
-        /* 5. Make buttons inside these specific rows smaller */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
-            padding: 4px !important;
-            font-size: 1.1rem !important;
-        }
-
-        /* 6. Stack the Rich Vibe Matcher Cards */
-        .movie-card > div {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-        }
-        .movie-card img {
-            width: 100% !important;
-            max-width: 200px !important;
-            margin-bottom: 15px !important;
-            align-self: center !important;
-        }
-        
-        /* 7. Hide the top header spacer column so the title and region stack nicely */
+        div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 10px !important; }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { width: calc(50% - 10px) !important; flex: 0 0 calc(50% - 10px) !important; min-width: calc(50% - 10px) !important; }
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0 !important; }
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { width: 33.33% !important; flex: 1 1 33.33% !important; min-width: 33.33% !important; padding: 0 2px !important; }
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button { padding: 4px !important; font-size: 1.1rem !important; }
+        .movie-card > div { flex-direction: column !important; align-items: flex-start !important; }
+        .movie-card img { width: 100% !important; max-width: 200px !important; margin-bottom: 15px !important; align-self: center !important; }
         .top-bar-spacer { display: none !important; }
     }
 </style>
@@ -176,13 +136,7 @@ col_title, col_spacer, col_region = st.columns([3, 2, 1])
 with col_title:
     st.markdown("<h1 style='text-align: left; font-weight: 800; letter-spacing: -1px; margin-bottom: 0;'>Movie Vibe</h1>", unsafe_allow_html=True)
 with col_region:
-    st.selectbox(
-        "Region", 
-        options=list(COUNTRIES.keys()), 
-        format_func=lambda x: f"🌍 {COUNTRIES[x]}", 
-        key="region",
-        label_visibility="collapsed"
-    )
+    st.selectbox("Region", options=list(COUNTRIES.keys()), format_func=lambda x: f"🌍 {COUNTRIES[x]}", key="region", label_visibility="collapsed")
 
 st.markdown("<p style='text-align: left; color: #888; margin-bottom: 2rem;'>Find your next watch</p>", unsafe_allow_html=True)
 
@@ -192,19 +146,23 @@ DECADES = {"2020s": ("2020-01-01", "2029-12-31"), "2010s": ("2010-01-01", "2019-
 SURPRISE_VIBES = ["mind-bending", "tearjerker", "funny but sad", "action-packed", "slow burn", "feel-good", "dark and gritty", "visually stunning", "twist ending", "nostalgic"]
 
 # ==========================================
-# 💾 WATCHLIST LOGIC & SESSION STATE
+# 💾 NEW: WATCHLIST LOGIC WITH LOCAL STORAGE
 # ==========================================
-WATCHLIST_FILE = "watchlist.json"
-def load_watchlist():
-    if os.path.exists(WATCHLIST_FILE):
-        try:
-            with open(WATCHLIST_FILE, "r") as f: return json.load(f)
-        except: return []
-    return []
-def save_watchlist_to_file(watchlist):
-    with open(WATCHLIST_FILE, "w") as f: json.dump(watchlist, f)
+localS = LocalStorage()
 
-if "watchlist" not in st.session_state: st.session_state.watchlist = load_watchlist()
+if "watchlist" not in st.session_state:
+    saved_list = localS.getItem("user_watchlist")
+    if saved_list and isinstance(saved_list, str):
+        try:
+            st.session_state.watchlist = json.loads(saved_list)
+        except:
+            st.session_state.watchlist = []
+    else:
+        st.session_state.watchlist = []
+
+def save_watchlist_to_browser():
+    localS.setItem("user_watchlist", json.dumps(st.session_state.watchlist))
+
 if "current_candidates" not in st.session_state: st.session_state.current_candidates = []
 if "current_recommendations" not in st.session_state: st.session_state.current_recommendations = []
 if "media_type" not in st.session_state: st.session_state.media_type = "Both"
@@ -225,7 +183,8 @@ def toggle_watchlist(media_id, title, poster, rating, p_type):
     else:
         st.session_state.watchlist.append({"id": media_id, "title": title, "poster": poster, "rating": rating, "type": p_type})
         st.toast(f"Added **{title}**")
-    save_watchlist_to_file(st.session_state.watchlist)
+    
+    save_watchlist_to_browser()
     st.rerun()
 
 def find_similar_callback(title):
@@ -410,7 +369,7 @@ def show_similar_dialog(target_title):
                     p_type = "tv" if is_tv else "movie"
                     
                     c1, c2 = st.columns([1, 3])
-                    with c1: st.image(poster_url, use_container_width=True)
+                    with c1: st.image(poster_url, width='stretch')
                     with c2:
                         st.markdown(f"#### {t}")
                         st.markdown(f"⭐ **{rt}**")
@@ -418,7 +377,7 @@ def show_similar_dialog(target_title):
                         
                         if m_id:
                             is_saved = any(item['id'] == m_id for item in st.session_state.watchlist)
-                            if st.button("Save", key=f"dlg_save_{m_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", use_container_width=True):
+                            if st.button("Save", key=f"dlg_save_{m_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                                 toggle_watchlist(m_id, t, poster_url, rt, p_type)
                                 st.rerun()
                     st.divider()
@@ -431,7 +390,7 @@ def show_details(m, media_type):
     p_type = media_type.lower() if media_type else "movie"
     
     col1, col2 = st.columns([1, 2])
-    with col1: st.image(poster, use_container_width=True)
+    with col1: st.image(poster, width='stretch')
     with col2:
         st.markdown(f"## {title}")
         st.markdown(f"⭐ **{rating}**")
@@ -447,10 +406,10 @@ def show_details(m, media_type):
             if trailer: st.markdown(f'<a href="{trailer}" target="_blank" class="trailer-btn">▶️ Trailer</a>', unsafe_allow_html=True)
         with c2:
             is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
-            if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", use_container_width=True):
+            if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                 toggle_watchlist(m['id'], title, poster, rating, p_type)
         with c3:
-            st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,), use_container_width=True)
+            st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,), width='stretch')
 
 # ==========================================
 # SESSION STATE CALLBACKS
@@ -483,7 +442,7 @@ with tab_home:
         with cols[i % 5]:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
-            st.image(poster, use_container_width=True)
+            st.image(poster, width='stretch')
             st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('title')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
             
@@ -505,7 +464,7 @@ with tab_home:
         with cols[i % 5]:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
-            st.image(poster, use_container_width=True)
+            st.image(poster, width='stretch')
             st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('name')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
             
@@ -529,7 +488,7 @@ with tab_upcoming:
     if st.session_state.get("up_search"):
         res = search_media(st.session_state.up_search)
         if res:
-            if st.button(f"View Details for {res[0].get('title') or res[0].get('name')}", use_container_width=True):
+            if st.button(f"View Details for {res[0].get('title') or res[0].get('name')}", width='stretch'):
                 show_details(res[0], res[0].get('media_type'))
 
     st.markdown("### Upcoming Movies")
@@ -538,7 +497,7 @@ with tab_upcoming:
         with cols[i % 5]:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
-            st.image(poster, use_container_width=True)
+            st.image(poster, width='stretch')
             st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('title')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('release_date', 'TBA')}</div>", unsafe_allow_html=True)
             
@@ -560,7 +519,7 @@ with tab_upcoming:
         with cols[i % 5]:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
-            st.image(poster, use_container_width=True)
+            st.image(poster, width='stretch')
             st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('name')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('first_air_date', 'TBA')}</div>", unsafe_allow_html=True)
             
@@ -580,7 +539,6 @@ with tab_upcoming:
 # TAB 3: VIBE MATCHER
 # ==========================================
 with tab_search:
-    # 🚨 Mobile optimization: Put filters inside an expander so they don't take up the whole screen
     with st.expander("🔍 Filters & Options", expanded=False):
         col1, col2, col3 = st.columns([1, 2, 2])
         with col1: st.selectbox("Media", ["Movies", "TV Shows", "Both"], key="media_type")
@@ -687,16 +645,16 @@ with tab_search:
                 with b1:
                     is_saved = any(item['id'] == media_id for item in st.session_state.watchlist)
                     st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-                    if st.button("Saved" if is_saved else "Save", key=f"save_v_{media_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", use_container_width=True):
+                    if st.button("Saved" if is_saved else "Save", key=f"save_v_{media_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
                         toggle_watchlist(media_id, title, poster_url, rating, p_type)
                     st.markdown('</div>', unsafe_allow_html=True)
                 with b2:
                     st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-                    st.button("Find Similar", key=f"sim_v_{media_id}_{i}", icon=":material/auto_awesome:", on_click=find_similar_callback, args=(title,), use_container_width=True)
+                    st.button("Find Similar", key=f"sim_v_{media_id}_{i}", icon=":material/auto_awesome:", on_click=find_similar_callback, args=(title,), width='stretch')
                     st.markdown('</div>', unsafe_allow_html=True)
                 with b3:
                     st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-                    if st.button("More Info", key=f"info_v_{media_id}_{i}", icon=":material/info:", use_container_width=True):
+                    if st.button("More Info", key=f"info_v_{media_id}_{i}", icon=":material/info:", width='stretch'):
                         m_data = next((x for x in st.session_state.current_candidates if x['id'] == media_id), None)
                         if m_data: show_details(m_data, p_type)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -712,15 +670,15 @@ with tab_watchlist:
     else:
         col_w1, col_w2 = st.columns([4, 1])
         with col_w2:
-            if st.button("🗑️ Clear All", use_container_width=True):
+            if st.button("🗑️ Clear All", width='stretch'):
                 st.session_state.watchlist = []
-                save_watchlist_to_file([])
+                save_watchlist_to_browser()
                 st.rerun()
 
         for i, item in enumerate(st.session_state.watchlist):
             if i % 5 == 0: cols = st.columns(5)
             with cols[i % 5]:
-                st.image(item['poster'], use_container_width=True)
+                st.image(item['poster'], width='stretch')
                 st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{item['title']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {item['rating']}</div>", unsafe_allow_html=True)
                 
