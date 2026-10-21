@@ -29,10 +29,12 @@ st.markdown("""
     /* 🚨 HIDE STREAMLIT'S NATIVE BADGES SO THEY DON'T BLOCK BUTTONS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
     [data-testid="stStatusWidget"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stBottom"] > div { display: none !important; }
 
-    .block-container { padding-top: 1.5rem !important; padding-bottom: 6rem !important; max-width: 95% !important; }
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; max-width: 95% !important; }
 
     /* Pure Icon Buttons */
     .stButton > button {
@@ -82,11 +84,11 @@ st.markdown("""
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
-    /* Title text clamping (prevents uneven rows) */
+    /* Title clamping (keeps buttons perfectly aligned) */
     .tv-title { 
         font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
-        overflow: hidden; text-overflow: ellipsis; min-height: 2.4rem; 
+        overflow: hidden; text-overflow: ellipsis; min-height: 2.4rem; line-height: 1.2;
     }
     
     /* Rich Cards */
@@ -116,30 +118,31 @@ st.markdown("""
     /* ========================================== */
     @media (max-width: 768px) {
         /* Header stacking */
-        .header-container {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
         }
-        .header-container > div {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(1) > div {
             width: 100% !important;
+            min-width: 100% !important;
         }
         h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
         
         /* 2 Column Grid */
-        div[data-testid="stHorizontalBlock"] {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 12px !important;
         }
         
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
-        /* Adjust the 3-button row to fit */
+        /* Adjust the 3-button row to fit side-by-side */
         div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
@@ -172,33 +175,32 @@ st.markdown("""
             margin-bottom: 15px !important;
             align-self: center !important;
         }
-
-        /* 🚨 FLOATING BOTTOM NAVIGATION BAR 🚨 */
-        .mobile-nav {
-            position: fixed;
-            bottom: 0; left: 0; width: 100%;
-            background-color: #111;
-            border-top: 1px solid #333;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            z-index: 9999;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        
+        /* 🚨 FLOATING HAMBURGER MENU CSS 🚨 */
+        .fab-container { position: fixed; bottom: 20px; right: 20px; z-index: 100000; }
+        .fab-btn {
+            width: 60px; height: 60px; background: #ff4b4b; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4); cursor: pointer;
         }
-        .mobile-nav a {
-            color: #888;
-            text-decoration: none;
-            font-size: 0.75rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
+        .fab-menu {
+            position: absolute; bottom: 70px; right: 0;
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+            padding: 10px; display: flex; flex-direction: column; gap: 8px;
+            opacity: 0; pointer-events: none; transform: translateY(10px);
+            transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        .mobile-nav a:hover { color: #ff4b4b; }
-        .mobile-nav a span { font-size: 1.2rem; }
+        #fab-toggle:checked ~ .fab-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        #fab-toggle { display: none; }
+        .fab-menu a {
+            color: white; text-decoration: none; padding: 10px 20px;
+            background: #222; border-radius: 8px; text-align: center;
+            font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+        }
+        .fab-menu a:active { background: #ff4b4b; }
     }
     @media (min-width: 769px) {
-        .mobile-nav { display: none; }
+        .fab-container { display: none !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -216,15 +218,12 @@ if "region" not in st.session_state:
     st.session_state.region = "US"
 
 # 3. Header & Top Bar Layout
-st.markdown('<div class="header-container">', unsafe_allow_html=True)
 col_title, col_region = st.columns([3, 1])
 with col_title:
     st.markdown("<h1 style='text-align: left; font-weight: 800; letter-spacing: -1px; margin-bottom: 0;'>Movie Vibe</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: left; color: #888; margin-bottom: 0;'>Find your next watch</p>", unsafe_allow_html=True)
 with col_region:
-    st.write("") # Spacing
     st.selectbox("Region", options=list(COUNTRIES.keys()), format_func=lambda x: f"🌍 {COUNTRIES[x]}", key="region", label_visibility="collapsed")
-st.markdown('</div>', unsafe_allow_html=True)
 
 st.write("")
 
@@ -542,29 +541,31 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
+# 🚨 FLOATING HAMBURGER MENU 🚨
+# ==========================================
+st.markdown('<div id="tabs-top"></div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="fab-container">
+    <input type="checkbox" id="fab-toggle">
+    <label for="fab-toggle" class="fab-btn">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </label>
+    <div class="fab-menu">
+        <a href="#tabs-top">🏠 Trending</a>
+        <a href="#tabs-top">🔍 Search</a>
+        <a href="#tabs-top">🗓️ Upcoming</a>
+        <a href="#tabs-top">✨ Vibe Matcher</a>
+        <a href="#tabs-top">❤️ Watchlist</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ==========================================
 # TABS
 # ==========================================
 tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
     "Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"
 ])
-
-# Anchor IDs for mobile nav
-st.markdown('<div id="top"></div>', unsafe_allow_html=True)
-st.markdown('<div id="search-tab"></div>', unsafe_allow_html=True)
-st.markdown('<div id="upcoming-tab"></div>', unsafe_allow_html=True)
-st.markdown('<div id="vibe-tab"></div>', unsafe_allow_html=True)
-st.markdown('<div id="watch-tab"></div>', unsafe_allow_html=True)
-
-# Mobile Bottom Nav
-st.markdown("""
-<div class="mobile-nav">
-    <a href="#top"><span>🏠</span>Home</a>
-    <a href="#search-tab"><span>🔍</span>Search</a>
-    <a href="#upcoming-tab"><span>🗓️</span>Upcoming</a>
-    <a href="#vibe-tab"><span>✨</span>Vibe</a>
-    <a href="#watch-tab"><span>❤️</span>Saved</a>
-</div>
-""", unsafe_allow_html=True)
 
 # ==========================================
 # TAB 1: TRENDING
