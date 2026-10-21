@@ -127,7 +127,7 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)      */
+    /* 📱 BULLETPROOF MOBILE CSS (FORCE 2 COLUMNS)*/
     /* ========================================== */
     @media (max-width: 768px) {
         /* Hide the top Radio menu on mobile */
@@ -145,14 +145,17 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 🚨 FORCE EXACTLY 2 COLUMNS ONLY ON ROWS WITH IMAGES 🚨 */
+        /* 🚨 FORCE 2 COLUMNS ONLY ON ROWS WITH IMAGES 🚨 */
+        /* Override Streamlit's default flex-direction: column */
         div[data-testid="stHorizontalBlock"]:has(img) {
             display: flex !important;
+            flex-direction: row !important;
             flex-wrap: wrap !important;
             gap: 12px !important;
+            width: 100% !important;
         }
         
-        /* Target the columns inside the movie row */
+        /* Target the columns inside the movie row and force them to 50% */
         div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
             width: calc(50% - 6px) !important;
             flex: 0 0 calc(50% - 6px) !important;
