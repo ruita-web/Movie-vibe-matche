@@ -127,7 +127,7 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS 📱             */
+    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)      */
     /* ========================================== */
     @media (max-width: 768px) {
         /* Hide the top Radio menu on mobile */
@@ -145,21 +145,23 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* STRICT 2 COLUMNS */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 15px !important;
+        /* 🚨 FORCE EXACTLY 2 COLUMNS ONLY ON ROWS WITH IMAGES 🚨 */
+        div[data-testid="stHorizontalBlock"]:has(img) {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
         }
         
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) > div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-            flex: none !important;
+        /* Target the columns inside the movie row */
+        div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
+            width: calc(50% - 6px) !important;
+            flex: 0 0 calc(50% - 6px) !important;
+            min-width: calc(50% - 6px) !important;
+            max-width: calc(50% - 6px) !important;
         }
         
-        /* Keep the 3 buttons horizontal */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
+        /* Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
@@ -167,13 +169,13 @@ st.markdown("""
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -209,7 +211,7 @@ if "region" not in st.session_state:
     st.session_state.region = "US"
 
 # ==========================================
-# 🚨 NEW NAVIGATION SYSTEM (URL ROUTING)
+# 🚨 NAVIGATION SYSTEM (URL ROUTING)
 # ==========================================
 if "current_tab" not in st.session_state:
     st.session_state.current_tab = st.query_params.get("tab", "Trending")
