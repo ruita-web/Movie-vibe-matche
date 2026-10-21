@@ -27,14 +27,15 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* 🚨 AGGRESSIVE HIDING OF STREAMLIT BADGES */
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
+    /* 🚨 KILL THE STREAMLIT CROWN AND TOOLBAR */
     header {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
     [data-testid="stBottom"] {display: none !important;}
-    div[class^="st-emotion-cache"] > footer {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    iframe[title="streamlit_local_storage.local_storage"] { display: none !important; }
 
     .block-container { padding-top: 1.5rem !important; padding-bottom: 5rem !important; max-width: 95% !important; }
 
@@ -95,8 +96,8 @@ st.markdown("""
     .movie-card:hover { border-color: rgba(255, 75, 75, 0.4); }
     
     /* Tabs */
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; justify-content: center; border-bottom: 1px solid #222; padding-bottom: 10px;}
-    .stTabs [data-baseweb="tab"] { font-size: 1.05rem; font-weight: 600; color: #888; }
+    .stTabs [data-baseweb="tab-list"] { gap: 15px; justify-content: flex-start; border-bottom: 1px solid #222; padding-bottom: 10px; overflow-x: auto; white-space: nowrap;}
+    .stTabs [data-baseweb="tab"] { font-size: 1rem; font-weight: 600; color: #888; }
     .stTabs [aria-selected="true"] { color: #ff4b4b !important; }
     
     /* Inputs & Selectboxes */
@@ -113,37 +114,33 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS 📱             */
+    /* 📱 BULLETPROOF MOBILE CSS (TARGETING IMG)  */
     /* ========================================== */
     @media (max-width: 768px) {
-        /* 1. Header Stacking */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
+        
+        /* 1. Fix Header (Title on top, Region below) */
+        div[data-testid="stHorizontalBlock"]:not(:has(img)):not(:has(button)) {
             display: flex !important;
             flex-direction: column !important;
-            gap: 10px !important;
-        }
-        div[data-testid="stHorizontalBlock"]:nth-of-type(1) > div {
-            width: 100% !important;
-            min-width: 100% !important;
+            gap: 5px !important;
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 2. FORCE 2 COLUMNS FOR MOVIE GRIDS */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
+        /* 2. FORCE 2 COLUMNS ONLY FOR ROWS THAT CONTAIN IMAGES (Movie Grids) */
+        div[data-testid="stHorizontalBlock"]:has(img) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 15px !important;
         }
         
-        /* 3. Force each column to be exactly 50% width */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:has(img) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
-        /* 4. Keep the 3 buttons (Info, Save, Similar) horizontal */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
+        /* 3. Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
@@ -151,13 +148,13 @@ st.markdown("""
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
+        div[data-testid="column"] > div[data-testid="stHorizontalBlock"]:has(button) .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -165,7 +162,7 @@ st.markdown("""
             background: rgba(255,255,255,0.05) !important;
         }
 
-        /* 5. Stack Vibe Matcher rich cards */
+        /* 4. Stack Vibe Matcher rich cards */
         .movie-card > div {
             flex-direction: column !important;
             align-items: flex-start !important;
@@ -523,7 +520,7 @@ tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
 ])
 
 # ==========================================
-# 🚨 FLOATING HAMBURGER MENU
+# 🚨 FLOATING HAMBURGER MENU (REAL FIX)
 # ==========================================
 components.html("""
 <script>
@@ -533,29 +530,23 @@ components.html("""
         if (tabs && tabs[index]) {
             tabs[index].click();
         }
-        // Hide the iframe after clicking
-        parentDoc.getElementById('fab-iframe').style.display = 'none';
+        // Uncheck the box to close the menu
+        const checkbox = parentDoc.getElementById('fab-checkbox');
+        if(checkbox) checkbox.checked = false;
     }
 </script>
 
 <style>
-    #fab-iframe {
+    /* The container is fixed to the bottom right and has a high z-index */
+    .fab-container {
         position: fixed;
-        bottom: 20px;
-        right: 20px;
+        bottom: 25px;
+        right: 25px;
         z-index: 999999;
-        width: 60px;
-        height: 60px;
-        border: none;
-        background: transparent;
+        font-family: sans-serif;
     }
     
-    .fab-wrapper {
-        position: relative;
-        width: 60px;
-        height: 60px;
-    }
-    
+    /* The red circular button */
     .fab-btn {
         width: 60px; height: 60px;
         background-color: #ff4b4b;
@@ -563,9 +554,12 @@ components.html("""
         display: flex; align-items: center; justify-content: center;
         box-shadow: 0 4px 15px rgba(255, 75, 75, 0.6);
         cursor: pointer;
+        transition: transform 0.2s ease;
     }
-    .fab-btn svg { width: 28px; height: 28px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fab-btn:hover { transform: scale(1.1); }
+    .fab-btn svg { width: 30px; height: 30px; stroke: white; stroke-width: 2.5; stroke-linecap: round; }
     
+    /* The popup menu */
     .fab-menu {
         position: absolute;
         bottom: 75px; right: 0;
@@ -573,32 +567,34 @@ components.html("""
         border: 1px solid #333;
         border-radius: 12px;
         padding: 10px;
-        display: none;
-        flex-direction: column; gap: 8px;
+        display: flex; flex-direction: column; gap: 8px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-        min-width: 150px;
-        z-index: 1000000;
+        min-width: 160px;
+        opacity: 0; pointer-events: none; transform: translateY(10px);
+        transition: all 0.2s ease;
     }
-    
-    .fab-wrapper:hover .fab-menu {
-        display: flex;
+    /* Show menu when checkbox is checked */
+    #fab-checkbox:checked ~ .fab-menu {
+        opacity: 1; pointer-events: auto; transform: translateY(0);
     }
+    #fab-checkbox { display: none; }
     
+    /* Menu links */
     .fab-menu a {
         color: white; text-decoration: none;
         padding: 12px 16px; border-radius: 8px;
         font-weight: 600; font-size: 0.95rem;
         background: #222;
         display: flex; align-items: center; gap: 10px;
-        white-space: nowrap;
     }
     .fab-menu a:active { background: #ff4b4b; }
 </style>
 
-<div class="fab-wrapper">
-    <div class="fab-btn">
+<div class="fab-container">
+    <input type="checkbox" id="fab-checkbox">
+    <label for="fab-checkbox" class="fab-btn">
         <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-    </div>
+    </label>
     <div class="fab-menu">
         <a href="#" onclick="clickTab(0); return false;">🏠 Trending</a>
         <a href="#" onclick="clickTab(1); return false;">🔍 Search</a>
@@ -607,7 +603,7 @@ components.html("""
         <a href="#" onclick="clickTab(4); return false;">❤️ Watchlist</a>
     </div>
 </div>
-""", height=200, width=100)
+""", height=100, width=100) # Height 100 ensures it renders, but it's fixed so it floats
 
 # ==========================================
 # TAB 1: TRENDING
