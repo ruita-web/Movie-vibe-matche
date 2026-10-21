@@ -25,10 +25,14 @@ st.markdown("""
     html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
     
-    .block-container { padding-top: 1.5rem !important; padding-bottom: 5rem !important; max-width: 95% !important; }
+    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES SO THEY DON'T BLOCK BUTTONS */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+    [data-testid="stBottom"] > div { display: none !important; }
+
+    .block-container { padding-top: 1.5rem !important; padding-bottom: 6rem !important; max-width: 95% !important; }
 
     /* Pure Icon Buttons */
     .stButton > button {
@@ -47,7 +51,7 @@ st.markdown("""
     }
     
     /* Main Action Buttons */
-    .main-btn .stButton > button, .action-btn .stButton > button {
+    .main-btn .stButton > button {
         background: #ff4b4b !important;
         color: white !important;
         border-radius: 8px !important;
@@ -57,7 +61,7 @@ st.markdown("""
         width: 100% !important;
         border: 1px solid #ff4b4b !important;
     }
-    .main-btn .stButton > button:hover, .action-btn .stButton > button:hover { 
+    .main-btn .stButton > button:hover { 
         background: #ff7676 !important; 
         transform: none; 
     }
@@ -72,15 +76,18 @@ st.markdown("""
         font-size: 0.95rem !important;
         border: 1px solid #444 !important;
     }
-    .secondary-btn .stButton > button:hover {
-        border-color: #ff4b4b !important;
-        color: #ff4b4b !important;
-    }
 
     /* Movie Cards */
     .tv-card { background: transparent; border: none; margin-bottom: 15px; }
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
+    
+    /* Title text clamping (prevents uneven rows) */
+    .tv-title { 
+        font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
+        overflow: hidden; text-overflow: ellipsis; min-height: 2.4rem; 
+    }
     
     /* Rich Cards */
     .movie-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
@@ -103,17 +110,27 @@ st.markdown("""
     
     /* Trailer Button */
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
-    .trailer-btn:hover { background: #ff7676; }
-
+    
     /* ========================================== */
     /* 📱 BULLETPROOF MOBILE CSS 📱             */
     /* ========================================== */
     @media (max-width: 768px) {
-        /* Make posters 3 columns instead of 2 */
+        /* Header stacking */
+        .header-container {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+        .header-container > div {
+            width: 100% !important;
+        }
+        h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
+        
+        /* 2 Column Grid */
         div[data-testid="stHorizontalBlock"] {
             display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 8px !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
         }
         
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
@@ -122,16 +139,13 @@ st.markdown("""
             flex: none !important;
         }
         
-        /* Hide the text title inside the grid to save space on mobile */
-        .tv-card > div:nth-child(2) { display: none !important; }
-        
         /* Adjust the 3-button row to fit */
         div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
-            gap: 2px !important;
-            margin-top: 4px !important;
+            gap: 4px !important;
+            margin-top: 6px !important;
         }
         div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             width: 33.33% !important;
@@ -140,8 +154,11 @@ st.markdown("""
             padding: 0 !important;
         }
         div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
-            padding: 2px !important;
-            font-size: 1rem !important;
+            padding: 6px !important;
+            font-size: 1.1rem !important;
+            border: 1px solid #333 !important;
+            border-radius: 8px !important;
+            background: rgba(255,255,255,0.05) !important;
         }
 
         /* Stack Vibe Matcher rich cards */
@@ -151,15 +168,11 @@ st.markdown("""
         }
         .movie-card img {
             width: 100% !important;
-            max-width: 150px !important;
-            margin-bottom: 10px !important;
+            max-width: 180px !important;
+            margin-bottom: 15px !important;
             align-self: center !important;
         }
 
-        /* Make top header smaller */
-        .top-bar-spacer { display: none !important; }
-        h1 { font-size: 1.8rem !important; }
-        
         /* 🚨 FLOATING BOTTOM NAVIGATION BAR 🚨 */
         .mobile-nav {
             position: fixed;
@@ -184,7 +197,6 @@ st.markdown("""
         .mobile-nav a:hover { color: #ff4b4b; }
         .mobile-nav a span { font-size: 1.2rem; }
     }
-    /* Hide mobile nav on desktop */
     @media (min-width: 769px) {
         .mobile-nav { display: none; }
     }
@@ -204,13 +216,17 @@ if "region" not in st.session_state:
     st.session_state.region = "US"
 
 # 3. Header & Top Bar Layout
-col_title, col_spacer, col_region = st.columns([3, 2, 1])
+st.markdown('<div class="header-container">', unsafe_allow_html=True)
+col_title, col_region = st.columns([3, 1])
 with col_title:
     st.markdown("<h1 style='text-align: left; font-weight: 800; letter-spacing: -1px; margin-bottom: 0;'>Movie Vibe</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: left; color: #888; margin-bottom: 0;'>Find your next watch</p>", unsafe_allow_html=True)
 with col_region:
+    st.write("") # Spacing
     st.selectbox("Region", options=list(COUNTRIES.keys()), format_func=lambda x: f"🌍 {COUNTRIES[x]}", key="region", label_visibility="collapsed")
+st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("<p style='text-align: left; color: #888; margin-bottom: 2rem;'>Find your next watch</p>", unsafe_allow_html=True)
+st.write("")
 
 # 4. TMDB Data
 GENRES = {"Action": 28, "Comedy": 35, "Horror": 27, "Sci-Fi": 878, "Drama": 18, "Thriller": 53, "Romance": 10749, "Animation": 16, "Mystery": 9648, "Fantasy": 14, "Adventure": 12, "Crime": 80}
@@ -262,7 +278,7 @@ def toggle_watchlist(media_id, title, poster, rating, p_type):
 def find_similar_callback(title):
     st.session_state.similar_target = title
 
-# 5. API Functions (With Timeouts and Error Handling)
+# 5. API Functions
 def get_watch_providers(media_id, media_type):
     try:
         url = f"https://api.themoviedb.org/3/{media_type}/{media_id}/watch/providers?api_key={TMDB_API_KEY}"
@@ -300,10 +316,8 @@ def get_credits(media_id, media_type):
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        
         creators = [crew['name'] for crew in data.get('crew', []) if crew.get('job') in ['Director', 'Creator', 'Executive Producer']]
         creator_str = creators[0] if creators else "Unknown"
-        
         cast = [actor['name'] for actor in data.get('cast', [])[:3]]
         return creator_str, ", ".join(cast) if cast else "Unknown"
     except:
@@ -412,7 +426,6 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
         ai_text = response.choices[0].message.content.strip().replace("```json", "").replace("```", "")
         return json.loads(ai_text)
     except Exception as e:
-        print(f"Groq API Error: {e}")
         return None 
 
 # ==========================================
@@ -529,20 +542,20 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# TABS (WITH ANCHORS FOR MOBILE NAV)
+# TABS
 # ==========================================
 tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
     "Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"
 ])
 
-# Add IDs to the top of each tab so the floating nav can scroll to them
+# Anchor IDs for mobile nav
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 st.markdown('<div id="search-tab"></div>', unsafe_allow_html=True)
 st.markdown('<div id="upcoming-tab"></div>', unsafe_allow_html=True)
 st.markdown('<div id="vibe-tab"></div>', unsafe_allow_html=True)
 st.markdown('<div id="watch-tab"></div>', unsafe_allow_html=True)
 
-# 🚨 THE FLOATING MOBILE NAVIGATION BAR 🚨
+# Mobile Bottom Nav
 st.markdown("""
 <div class="mobile-nav">
     <a href="#top"><span>🏠</span>Home</a>
@@ -564,7 +577,7 @@ with tab_home:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
-            st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('title')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='tv-title'>{m.get('title')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
@@ -586,7 +599,7 @@ with tab_home:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
-            st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('name')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='tv-title'>{m.get('name')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
@@ -605,9 +618,8 @@ with tab_home:
 # TAB 2: SEARCH DIRECT
 # ==========================================
 with tab_search_direct:
-    st.markdown("### 🔍 Search the Database")
-    st.write("Type the name of a specific movie or TV show to see details, watch the trailer, or save it.")
-    search_query = st.text_input("Search for a specific title...", placeholder="e.g., 'Spider-Man', 'The Office', 'Inception'")
+    st.markdown("### 🔍 Search")
+    search_query = st.text_input("Search for a specific title...", placeholder="e.g., 'Spider-Man', 'The Office'")
     
     if search_query:
         with st.spinner("Searching..."):
@@ -615,7 +627,7 @@ with tab_search_direct:
             if not results:
                 st.warning("No results found. Try checking the spelling.")
             else:
-                for i, m in enumerate(results[:10]): # Show top 10 results
+                for i, m in enumerate(results[:10]): 
                     if i % 5 == 0: cols = st.columns(5)
                     with cols[i % 5]:
                         st.markdown('<div class="tv-card">', unsafe_allow_html=True)
@@ -626,7 +638,7 @@ with tab_search_direct:
                         rating = f"{m.get('vote_average', 0):.1f}" if m.get('vote_average') else "N/A"
                         p_type = m.get('media_type')
                         
-                        st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{title}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='tv-title'>{title}</div>", unsafe_allow_html=True)
                         st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {rating}</div>", unsafe_allow_html=True)
                         
                         c1, c2, c3 = st.columns(3)
@@ -659,7 +671,7 @@ with tab_upcoming:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
-            st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('title')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='tv-title'>{m.get('title')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('release_date', 'TBA')}</div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
@@ -681,7 +693,7 @@ with tab_upcoming:
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
-            st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{m.get('name')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='tv-title'>{m.get('name')}</div>", unsafe_allow_html=True)
             st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('first_air_date', 'TBA')}</div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
@@ -840,7 +852,7 @@ with tab_watchlist:
             if i % 5 == 0: cols = st.columns(5)
             with cols[i % 5]:
                 st.image(item['poster'], width='stretch')
-                st.markdown(f"<div style='font-weight:600; font-size:0.95rem; margin-top:8px;'>{item['title']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='tv-title'>{item['title']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {item['rating']}</div>", unsafe_allow_html=True)
                 
                 c1, c2, c3 = st.columns(3)
