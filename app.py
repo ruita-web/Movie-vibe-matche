@@ -27,7 +27,7 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES */
+    /* 🚨 HIDE STREAMLIT'S NATIVE BADGES SO THEY DON'T BLOCK BUTTONS */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -85,7 +85,7 @@ st.markdown("""
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
-    /* Title clamping */
+    /* Title clamping to keep rows even */
     .tv-title { 
         font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
@@ -115,49 +115,48 @@ st.markdown("""
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
     
     /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)     */
+    /* 📱 BULLETPROOF MOBILE CSS 📱             */
     /* ========================================== */
     @media (max-width: 768px) {
-        /* Header stacking */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
+        /* 1. Header stacking */
+        div[data-testid="stHorizontalBlock"]:has(h1) {
             display: flex !important;
             flex-direction: column !important;
             gap: 10px !important;
         }
-        div[data-testid="stHorizontalBlock"]:nth-of-type(1) > div {
+        div[data-testid="stHorizontalBlock"]:has(h1) > div {
             width: 100% !important;
             min-width: 100% !important;
         }
         h1 { font-size: 2rem !important; margin-bottom: 0 !important; }
         
-        /* 🚨 2 COLUMN GRID - ENFORCED 🚨 */
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) {
+        /* 2. STRICT 2 COLUMNS FOR MOVIE GRIDS */
+        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(.stButton)) {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr) !important;
             gap: 12px !important;
         }
-        
-        div[data-testid="stHorizontalBlock"]:nth-of-type(n+2) > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:not(:has(h1)):not(:has(.stButton)) > div[data-testid="column"] {
             width: 100% !important;
             min-width: 100% !important;
             flex: none !important;
         }
         
-        /* Adjust the 3-button row to fit side-by-side */
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
+        /* 3. Keep the 3 buttons horizontal */
+        div[data-testid="stHorizontalBlock"]:has(.stButton) {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
             gap: 4px !important;
             margin-top: 6px !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"]:has(.stButton) > div[data-testid="column"] {
             width: 33.33% !important;
             min-width: 33.33% !important;
             flex: 1 !important;
             padding: 0 !important;
         }
-        div[data-testid="column"] > div[data-testid="stHorizontalBlock"] .stButton > button {
+        div[data-testid="stHorizontalBlock"]:has(.stButton) .stButton > button {
             padding: 6px !important;
             font-size: 1.1rem !important;
             border: 1px solid #333 !important;
@@ -165,7 +164,7 @@ st.markdown("""
             background: rgba(255,255,255,0.05) !important;
         }
 
-        /* Stack Vibe Matcher rich cards */
+        /* 4. Stack Vibe Matcher rich cards */
         .movie-card > div {
             flex-direction: column !important;
             align-items: flex-start !important;
@@ -523,74 +522,46 @@ tab_home, tab_search_direct, tab_upcoming, tab_search, tab_watchlist = st.tabs([
 ])
 
 # ==========================================
-# 🚨 THE JAVASCRIPT FLOATING MENU (ACTUALLY CLICKS TABS)
+# 🚨 THE JAVASCRIPT FLOATING MENU (CLICKS TABS)
 # ==========================================
 components.html("""
 <script>
-    // Function to simulate clicking Streamlit's tab buttons
     function clickTab(index) {
         const tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
         if (tabs && tabs[index]) {
             tabs[index].click();
         }
-        // Close the menu after clicking
-        const toggle = window.parent.document.getElementById('fab-checkbox');
-        if(toggle) toggle.checked = false;
+        const checkbox = window.parent.document.getElementById('fab-checkbox');
+        if(checkbox) checkbox.checked = false;
     }
 </script>
 
 <style>
     @media (max-width: 768px) {
-        .fab-wrapper {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 999999;
-            font-family: 'Inter', sans-serif;
-        }
+        .fab-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: sans-serif; }
         .fab-btn {
-            width: 60px; height: 60px;
-            background-color: #ff4b4b;
-            border-radius: 50%;
+            width: 60px; height: 60px; background-color: #ff4b4b; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
-            cursor: pointer;
-            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4); cursor: pointer;
         }
-        .fab-btn:active { transform: scale(0.95); }
         .fab-btn svg { width: 28px; height: 28px; fill: none; stroke: white; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
         
         .fab-menu {
-            position: absolute;
-            bottom: 75px; right: 0;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 10px;
-            display: flex; flex-direction: column; gap: 8px;
-            opacity: 0; pointer-events: none; transform: translateY(10px);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            min-width: 150px;
+            position: absolute; bottom: 75px; right: 0; background: #1a1a1a; border: 1px solid #333;
+            border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+            opacity: 0; pointer-events: none; transform: translateY(10px); transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6); min-width: 150px;
         }
-        #fab-checkbox:checked ~ .fab-menu {
-            opacity: 1; pointer-events: auto; transform: translateY(0);
-        }
+        #fab-checkbox:checked ~ .fab-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
         #fab-checkbox { display: none; }
         
         .fab-menu a {
-            display: flex; align-items: center; gap: 10px;
-            color: white; text-decoration: none;
-            padding: 12px 16px; border-radius: 8px;
-            font-weight: 600; font-size: 0.95rem;
-            background: #222;
-            transition: background 0.2s;
+            display: flex; align-items: center; gap: 10px; color: white; text-decoration: none;
+            padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; background: #222;
         }
         .fab-menu a:active { background: #ff4b4b; color: white; }
     }
-    @media (min-width: 769px) {
-        .fab-wrapper { display: none !important; }
-    }
+    @media (min-width: 769px) { .fab-wrapper { display: none !important; } }
 </style>
 
 <div class="fab-wrapper">
