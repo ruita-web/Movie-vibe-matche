@@ -145,19 +145,19 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 🚨 FORCE 2 COLUMNS (Targets ONLY the grids with images) 🚨 */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="stImage"]) {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
+        /* 🚨 FORCE ALL GRIDS TO BE 2 COLUMNS 🚨 */
+        div[data-testid="stHorizontalBlock"]:not(:nth-of-type(1)) {
+            display: flex !important;
+            flex-wrap: wrap !important;
             gap: 15px !important;
             width: 100% !important;
         }
         
-        /* Force each column to be exactly 50% */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="stImage"]) > div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-            flex: none !important;
+        div[data-testid="stHorizontalBlock"]:not(:nth-of-type(1)) > div[data-testid="column"] {
+            width: calc(50% - 7.5px) !important;
+            min-width: calc(50% - 7.5px) !important;
+            flex: 0 0 calc(50% - 7.5px) !important;
+            padding: 0 !important;
         }
         
         /* Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
@@ -196,14 +196,17 @@ st.markdown("""
         }
 
         /* 🚨 FLOATING HAMBURGER POPOVER 🚨 */
+        /* Force the popover container to be a small floating circle */
         div[data-testid="stPopover"] {
             position: fixed !important;
             bottom: 80px !important; /* Moved above the Streamlit crown */
             right: 20px !important;
             z-index: 999999 !important;
+            width: 60px !important;
+            height: 60px !important;
         }
         
-        /* Make the popover button a circular floating action button */
+        /* Force the button inside the popover to be a perfect circle */
         div[data-testid="stPopover"] > button {
             width: 60px !important;
             height: 60px !important;
