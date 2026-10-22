@@ -49,7 +49,7 @@ if "user_id" not in st.session_state:
 user_id = st.session_state.user_id
 
 # ==========================================
-# 🚨 SESSION STATE INITIALIZATION (FIXED)
+# 🚨 SESSION STATE INITIALIZATION
 # ==========================================
 if "watchlist" not in st.session_state: 
     try:
@@ -91,7 +91,7 @@ def toggle_watchlist(media_id, title, poster, rating, p_type):
             st.error(f"Error saving: {e}")
 
 # ==========================================
-# 🎨 CSS
+# 🎨 CSS (2 COLUMNS & FLOATING MENU)
 # ==========================================
 st.markdown("""
 <style>
@@ -296,7 +296,7 @@ if "region" not in st.session_state:
 # ==========================================
 # 🚨 NAVIGATION SYSTEM
 # ==========================================
-tabs_list = ["Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"]
+tabs_list = ["Trending", "Search", "Upcoming", "Actors", "Vibe Matcher", "Watchlist"]
 
 if "tab" not in st.query_params:
     st.query_params["tab"] = "Trending"
@@ -325,6 +325,7 @@ with st.popover("☰"):
     if st.button("🏠 Trending", use_container_width=True): set_tab("Trending")
     if st.button("🔍 Search", use_container_width=True): set_tab("Search")
     if st.button("🗓️ Upcoming", use_container_width=True): set_tab("Upcoming")
+    if st.button("👤 Actors", use_container_width=True): set_tab("Actors")
     if st.button("✨ Vibe Matcher", use_container_width=True): set_tab("Vibe Matcher")
     if st.button("❤️ Watchlist", use_container_width=True): set_tab("Watchlist")
 
@@ -487,6 +488,28 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
         return json.loads(ai_text)
     except Exception as e:
         return None 
+
+# ==========================================
+# 🚨 ACTOR SEARCH FUNCTIONS
+# ==========================================
+def get_actor_id(actor_name):
+    url = f"https://api.themoviedb.org/3/search/person?api_key={TMDB_API_KEY}&query={actor_name}"
+    try:
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        if data.get("results"):
+            return data["results"][0]
+    except:
+        pass
+    return None
+
+def get_actor_movies(actor_id):
+    url = f"https://api.themoviedb.org/3/discover/movie?api_key={TMDB_API_KEY}&with_people={actor_id}&sort_by=vote_average.desc&vote_count.gte=100"
+    try:
+        response = requests.get(url, timeout=10)
+        return response.json().get("results", [])[:20]
+    except:
+        return []
 
 # ==========================================
 # 🚨 POPUP DIALOGS
@@ -737,6 +760,48 @@ elif current_tab == "Upcoming":
             with c3:
                 st.button("", key=f"sim_up_tv_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('name'),))
             st.markdown('</div>', unsafe_allow_html=True)
+
+elif current_tab == "Actors":
+    st.markdown("### 👤 Actor Search")
+    actor_query = st.text_input("Search for an actor...", placeholder="e.g., 'Jackie Chan', 'Dwayne Johnson', 'Scarlett Johansson'")
+    
+    if actor_query:
+        with st.spinner(f"Finding movies for {actor_query}..."):
+            actor = get_actor_id(actor_query)
+            if actor:
+                st.markdown(f"#### Movies starring **{actor['name']}** (Sorted by Highest Rating)")
+                movies = get_actor_movies(actor['id'])
+                
+                if not movies:
+                    st.warning("No movies found for this actor.")
+                else:
+                    for i, m in enumerate(movies):
+                        if i % 5 == 0: cols = st.columns(5)
+                        with cols[i % 5]:
+                            st.markdown('<div class="tv-card">', unsafe_allow_html=True)
+                            poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
+                            st.image(poster, width='stretch')
+                            
+                            title = m.get('title') or m.get('name')
+                            rating = f"{m.get('vote_average', 0):.1f}" if m.get('vote_average') else "N/A"
+                            p_type = "movie"
+                            
+                            st.markdown(f"<div class='tv-title'>{title}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {rating}</div>", unsafe_allow_html=True)
+                            
+                            c1, c2, c3 = st.columns(3)
+                            with c1:
+                                if st.button("", key=f"i_act_{m['id']}_{i}", icon=":material/info:", help="Details"):
+                                    show_details(m, p_type)
+                            with c2:
+                                is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
+                                if st.button("", key=f"s_act_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
+                                    toggle_watchlist(m['id'], title, poster, rating, p_type)
+                            with c3:
+                                st.button("", key=f"sim_act_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,))
+                            st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                st.error(f"Could not find an actor named **{actor_query}**. Try checking the spelling.")
 
 elif current_tab == "Vibe Matcher":
     with st.expander("🔍 Filters & Options", expanded=False):
