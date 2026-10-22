@@ -6,18 +6,92 @@ import random
 from datetime import date
 from dotenv import load_dotenv
 from openai import OpenAI
-from streamlit_local_storage import LocalStorage
+import extra_streamlit_components as stx
+from supabase import create_client, Client
+import uuid
 
 # 1. Load the secret keys
 load_dotenv()
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 # 2. Page Setup
 st.set_page_config(page_title="Movie Vibe Matcher", page_icon="🍿", layout="wide")
 
 # ==========================================
-# 🎨 THE REAL UI OVERHAUL (CSS)
+# 🚨 SUPABASE & COOKIE SETUP
+# ==========================================
+@st.cache_resource
+def init_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase = init_supabase()
+
+cookie_manager = stx.CookieManager(key="cookie_manager")
+
+if "user_id" not in st.session_state:
+    if "uid" in st.query_params:
+        st.session_state.user_id = st.query_params["uid"]
+    else:
+        cookie_id = cookie_manager.get(cookie="movie_vibe_uid")
+        if cookie_id:
+            st.session_state.user_id = cookie_id
+            st.query_params["uid"] = cookie_id
+        else:
+            new_id = str(uuid.uuid4())
+            cookie_manager.set("movie_vibe_uid", new_id)
+            st.query_params["uid"] = new_id
+            st.session_state.user_id = new_id
+            st.rerun()
+
+user_id = st.session_state.user_id
+
+# ==========================================
+# 🚨 SESSION STATE INITIALIZATION (FIXED)
+# ==========================================
+if "watchlist" not in st.session_state: 
+    try:
+        res = supabase.table("watchlists").select("movie_data").eq("user_id", user_id).execute()
+        st.session_state.watchlist = [item['movie_data'] for item in res.data]
+    except:
+        st.session_state.watchlist = []
+
+if "media_type" not in st.session_state: st.session_state.media_type = "Both"
+if "genres" not in st.session_state: st.session_state.genres = []
+if "decades" not in st.session_state: st.session_state.decades = []
+if "min_rating" not in st.session_state: st.session_state.min_rating = 6.0
+if "num_recs" not in st.session_state: st.session_state.num_recs = 5
+if "vibe" not in st.session_state: st.session_state.vibe = ""
+if "run_search" not in st.session_state: st.session_state.run_search = False
+if "is_surprise" not in st.session_state: st.session_state.is_surprise = False
+if "similar_target" not in st.session_state: st.session_state.similar_target = None
+if "current_candidates" not in st.session_state: st.session_state.current_candidates = []
+if "current_recommendations" not in st.session_state: st.session_state.current_recommendations = []
+
+def toggle_watchlist(media_id, title, poster, rating, p_type):
+    is_saved = any(item['id'] == media_id for item in st.session_state.watchlist)
+    if is_saved:
+        try:
+            supabase.table("watchlists").delete().eq("user_id", user_id).filter("movie_data->>id", "eq", str(media_id)).execute()
+            st.session_state.watchlist = [m for m in st.session_state.watchlist if m['id'] != media_id]
+            st.toast(f"Removed **{title}**")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error removing: {e}")
+    else:
+        new_movie = {"id": media_id, "title": title, "poster": poster, "rating": rating, "type": p_type}
+        try:
+            supabase.table("watchlists").insert({"user_id": user_id, "movie_data": new_movie}).execute()
+            st.session_state.watchlist.append(new_movie)
+            st.toast(f"Added **{title}**")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error saving: {e}")
+
+# ==========================================
+# 🎨 CSS
 # ==========================================
 st.markdown("""
 <style>
@@ -26,7 +100,6 @@ st.markdown("""
     
     .stApp { background-color: #0a0a0c !important; color: #fff; }
     
-    /* KILL STREAMLIT BADGES */
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
     header {visibility: hidden !important;}
@@ -37,7 +110,6 @@ st.markdown("""
 
     .block-container { padding-top: 1.5rem !important; padding-bottom: 5rem !important; max-width: 95% !important; }
 
-    /* Style the top Radio menu to look like Tabs */
     div[data-testid="stRadio"] > div {
         flex-direction: row !important;
         gap: 20px !important;
@@ -54,10 +126,8 @@ st.markdown("""
     div[data-testid="stRadio"] label[data-checked="true"] {
         color: #ff4b4b !important;
     }
-    /* Hide the radio circles */
     div[data-testid="stRadio"] label > div:first-child { display: none !important; }
 
-    /* Pure Icon Buttons */
     .stButton > button {
         background: transparent !important;
         border: none !important;
@@ -73,7 +143,6 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Main Action Buttons */
     .main-btn .stButton > button {
         background: #ff4b4b !important;
         color: white !important;
@@ -86,7 +155,6 @@ st.markdown("""
     }
     .main-btn .stButton > button:hover { background: #ff7676 !important; transform: none; }
     
-    /* Secondary Button */
     .secondary-btn .stButton > button {
         background: transparent !important;
         color: white !important;
@@ -97,43 +165,32 @@ st.markdown("""
         border: 1px solid #444 !important;
     }
 
-    /* Movie Cards */
     .tv-card { background: transparent; border: none; margin-bottom: 15px; }
     .tv-card img { border-radius: 8px; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.5); width: 100%; object-fit: cover; }
     .tv-card img:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(255, 75, 75, 0.2); }
     
-    /* Title clamping */
     .tv-title { 
         font-weight: 600; font-size: 0.95rem; margin-top: 8px; 
         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
         overflow: hidden; text-overflow: ellipsis; min-height: 2.4rem; line-height: 1.2;
     }
     
-    /* Rich Cards */
     .movie-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
     .movie-card:hover { border-color: rgba(255, 75, 75, 0.4); }
     
-    /* Inputs & Selectboxes */
     .stTextInput > div > div > input { background-color: #1a1a1a !important; color: white !important; border-radius: 8px !important; border: 1px solid #333 !important; padding: 12px 20px !important; }
     div[data-baseweb="select"] > div { background-color: #1a1a1a !important; border-radius: 8px !important; color: white !important; border: 1px solid #333 !important; }
     
-    /* Dropdown Menu (Popover) styling */
     div[data-baseweb="popover"] { background-color: #1a1a1a !important; border: 1px solid #333 !important; }
     ul[data-baseweb="menu"] { background-color: #1a1a1a !important; }
     li[data-baseweb="menu-item"] { color: white !important; }
     li[data-baseweb="menu-item"]:hover { background-color: #333 !important; color: #ff4b4b !important; }
     
-    /* Trailer Button */
     .trailer-btn { display: inline-flex; align-items: center; justify-content: center; background: #ff4b4b; color: white !important; text-decoration: none !important; padding: 10px 15px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; width: 100%; white-space: nowrap;}
 
-    /* ========================================== */
-    /* 📱 BULLETPROOF MOBILE CSS (2 COLUMNS)      */
-    /* ========================================== */
     @media (max-width: 768px) {
-        /* Hide the top Radio menu on mobile */
         div[data-testid="stRadio"] { display: none !important; }
 
-        /* Fix Header */
         div[data-testid="stHorizontalBlock"]:nth-of-type(1) {
             display: flex !important;
             flex-direction: column !important;
@@ -145,7 +202,6 @@ st.markdown("""
         }
         h1 { font-size: 2.2rem !important; margin-bottom: 0 !important; }
 
-        /* 🚨 FORCE ALL GRIDS TO BE 2 COLUMNS 🚨 */
         div[data-testid="stHorizontalBlock"]:not(:nth-of-type(1)) {
             display: flex !important;
             flex-wrap: wrap !important;
@@ -160,7 +216,6 @@ st.markdown("""
             padding: 0 !important;
         }
         
-        /* Keep the 3 buttons (Info, Save, Similar) horizontal inside the 50% column */
         div[data-testid="column"] > div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
@@ -183,7 +238,6 @@ st.markdown("""
             background: rgba(255,255,255,0.05) !important;
         }
 
-        /* Stack Vibe Matcher rich cards */
         .movie-card > div {
             flex-direction: column !important;
             align-items: flex-start !important;
@@ -195,18 +249,15 @@ st.markdown("""
             align-self: center !important;
         }
 
-        /* 🚨 FLOATING HAMBURGER POPOVER 🚨 */
-        /* Force the popover container to be a small floating circle */
         div[data-testid="stPopover"] {
             position: fixed !important;
-            bottom: 80px !important; /* Moved above the Streamlit crown */
+            bottom: 80px !important; 
             right: 20px !important;
             z-index: 999999 !important;
             width: 60px !important;
             height: 60px !important;
         }
         
-        /* Force the button inside the popover to be a perfect circle */
         div[data-testid="stPopover"] > button {
             width: 60px !important;
             height: 60px !important;
@@ -224,7 +275,6 @@ st.markdown("""
         }
     }
 
-    /* Hide the popover on desktop */
     @media (min-width: 769px) {
         div[data-testid="stPopover"] { display: none !important; }
     }
@@ -244,11 +294,10 @@ if "region" not in st.session_state:
     st.session_state.region = "US"
 
 # ==========================================
-# 🚨 NAVIGATION SYSTEM (NATIVE BACK BUTTON SUPPORT)
+# 🚨 NAVIGATION SYSTEM
 # ==========================================
 tabs_list = ["Trending", "Search", "Upcoming", "Vibe Matcher", "Watchlist"]
 
-# Set default tab in query params if none exists
 if "tab" not in st.query_params:
     st.query_params["tab"] = "Trending"
 
@@ -266,13 +315,11 @@ with col_title:
 with col_region:
     st.selectbox("Region", options=list(COUNTRIES.keys()), format_func=lambda x: f"🌍 {COUNTRIES[x]}", key="region", label_visibility="collapsed")
 
-# Desktop Navigation (Hidden on mobile)
 selected_tab = st.radio("Navigation", tabs_list, index=tabs_list.index(current_tab), horizontal=True, label_visibility="collapsed")
 
 if selected_tab != current_tab:
     set_tab(selected_tab)
 
-# Mobile Floating Hamburger Menu
 with st.popover("☰"):
     st.markdown("### Navigation")
     if st.button("🏠 Trending", use_container_width=True): set_tab("Trending")
@@ -287,48 +334,6 @@ st.write("")
 GENRES = {"Action": 28, "Comedy": 35, "Horror": 27, "Sci-Fi": 878, "Drama": 18, "Thriller": 53, "Romance": 10749, "Animation": 16, "Mystery": 9648, "Fantasy": 14, "Adventure": 12, "Crime": 80}
 DECADES = {"2020s": ("2020-01-01", "2029-12-31"), "2010s": ("2010-01-01", "2019-12-31"), "2000s": ("2000-01-01", "2009-12-31"), "90s": ("1990-01-01", "1999-12-31"), "80s": ("1980-01-01", "1989-12-31"), "70s": ("1970-01-01", "1979-12-31")}
 SURPRISE_VIBES = ["mind-bending", "tearjerker", "funny but sad", "action-packed", "slow burn", "feel-good", "dark and gritty", "visually stunning", "twist ending", "nostalgic"]
-
-# ==========================================
-# 💾 WATCHLIST LOGIC
-# ==========================================
-localS = LocalStorage()
-
-if "watchlist" not in st.session_state:
-    saved_list = localS.getItem("user_watchlist")
-    if saved_list and isinstance(saved_list, str):
-        try:
-            st.session_state.watchlist = json.loads(saved_list)
-        except:
-            st.session_state.watchlist = []
-    else:
-        st.session_state.watchlist = []
-
-def save_watchlist_to_browser():
-    localS.setItem("user_watchlist", json.dumps(st.session_state.watchlist))
-
-if "current_candidates" not in st.session_state: st.session_state.current_candidates = []
-if "current_recommendations" not in st.session_state: st.session_state.current_recommendations = []
-if "media_type" not in st.session_state: st.session_state.media_type = "Both"
-if "genres" not in st.session_state: st.session_state.genres = []
-if "decades" not in st.session_state: st.session_state.decades = []
-if "min_rating" not in st.session_state: st.session_state.min_rating = 6.0
-if "num_recs" not in st.session_state: st.session_state.num_recs = 5
-if "vibe" not in st.session_state: st.session_state.vibe = ""
-if "run_search" not in st.session_state: st.session_state.run_search = False
-if "is_surprise" not in st.session_state: st.session_state.is_surprise = False
-if "similar_target" not in st.session_state: st.session_state.similar_target = None
-
-def toggle_watchlist(media_id, title, poster, rating, p_type):
-    is_saved = any(item['id'] == media_id for item in st.session_state.watchlist)
-    if is_saved:
-        st.session_state.watchlist = [m for m in st.session_state.watchlist if m['id'] != media_id]
-        st.toast(f"Removed **{title}**")
-    else:
-        st.session_state.watchlist.append({"id": media_id, "title": title, "poster": poster, "rating": rating, "type": p_type})
-        st.toast(f"Added **{title}**")
-    
-    save_watchlist_to_browser()
-    st.rerun()
 
 def find_similar_callback(title):
     st.session_state.similar_target = title
@@ -597,7 +602,7 @@ def do_surprise():
     st.session_state.is_surprise = True
 
 # ==========================================
-# PAGE RENDERING (Conditional based on current_tab)
+# PAGE RENDERING
 # ==========================================
 
 if current_tab == "Trending":
@@ -863,8 +868,12 @@ elif current_tab == "Watchlist":
         col_w1, col_w2 = st.columns([4, 1])
         with col_w2:
             if st.button("🗑️ Clear All", width='stretch'):
+                for item in st.session_state.watchlist:
+                    try:
+                        supabase.table("watchlists").delete().eq("user_id", user_id).filter("movie_data->>id", "eq", str(item['id'])).execute()
+                    except Exception as e:
+                        pass
                 st.session_state.watchlist = []
-                save_watchlist_to_browser()
                 st.rerun()
 
         for i, item in enumerate(st.session_state.watchlist):
@@ -895,3 +904,17 @@ elif current_tab == "Watchlist":
 if st.session_state.get("similar_target"):
     target = st.session_state.similar_target
     show_similar_dialog(target)
+
+# ==========================================
+# 🚨 DEBUG INFO
+# ==========================================
+with st.sidebar:
+    st.write("### 🛠️ Debug Info")
+    st.write(f"**User ID:** `{user_id}`")
+    st.write(f"**Watchlist Count:** {len(st.session_state.watchlist)}")
+    if st.button("Test Supabase Connection"):
+        try:
+            res = supabase.table("watchlists").select("*").limit(1).execute()
+            st.success("Supabase connected successfully!")
+        except Exception as e:
+            st.error(f"Supabase Error: {e}")
