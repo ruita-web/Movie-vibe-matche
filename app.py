@@ -64,13 +64,15 @@ if "decades" not in st.session_state: st.session_state.decades = []
 if "min_rating" not in st.session_state: st.session_state.min_rating = 6.0
 if "num_recs" not in st.session_state: st.session_state.num_recs = 5
 if "vibe" not in st.session_state: st.session_state.vibe = ""
+if "extra_details" not in st.session_state: st.session_state.extra_details = ""
 if "run_search" not in st.session_state: st.session_state.run_search = False
 if "is_surprise" not in st.session_state: st.session_state.is_surprise = False
 if "similar_target" not in st.session_state: st.session_state.similar_target = None
 if "current_candidates" not in st.session_state: st.session_state.current_candidates = []
 if "current_recommendations" not in st.session_state: st.session_state.current_recommendations = []
+if "selected_providers" not in st.session_state: st.session_state.selected_providers = []
 
-def toggle_watchlist(media_id, title, poster, rating, p_type):
+def toggle_watchlist(media_id, title, poster, rating, p_type, extra_info):
     is_saved = any(item['id'] == media_id for item in st.session_state.watchlist)
     if is_saved:
         try:
@@ -81,7 +83,7 @@ def toggle_watchlist(media_id, title, poster, rating, p_type):
         except Exception as e:
             st.error(f"Error removing: {e}")
     else:
-        new_movie = {"id": media_id, "title": title, "poster": poster, "rating": rating, "type": p_type}
+        new_movie = {"id": media_id, "title": title, "poster": poster, "rating": rating, "type": p_type, "extra_info": extra_info}
         try:
             supabase.table("watchlists").insert({"user_id": user_id, "movie_data": new_movie}).execute()
             st.session_state.watchlist.append(new_movie)
@@ -294,6 +296,22 @@ if "region" not in st.session_state:
     st.session_state.region = "US"
 
 # ==========================================
+# 🚨 STREAMING PROVIDERS DICTIONARY
+# ==========================================
+PROVIDERS = {
+    "Netflix": 8,
+    "Amazon Prime Video": 9,
+    "Disney Plus": 337,
+    "Max": 1899,
+    "Hulu": 15,
+    "Apple TV Plus": 350,
+    "Paramount Plus": 531,
+    "Peacock": 386,
+    "Showmax": 444,
+    "Mubi": 11
+}
+
+# ==========================================
 # 🚨 NAVIGATION SYSTEM
 # ==========================================
 tabs_list = ["Trending", "Search", "Upcoming", "Actors", "Vibe Matcher", "Watchlist"]
@@ -332,7 +350,13 @@ with st.popover("☰"):
 st.write("")
 
 # 4. TMDB Data
-GENRES = {"Action": 28, "Comedy": 35, "Horror": 27, "Sci-Fi": 878, "Drama": 18, "Thriller": 53, "Romance": 10749, "Animation": 16, "Mystery": 9648, "Fantasy": 14, "Adventure": 12, "Crime": 80}
+GENRES = {
+    "Action": 28, "Adventure": 12, "Animation": 16, "Comedy": 35,
+    "Crime": 80, "Documentary": 99, "Drama": 18, "Family": 10751,
+    "Fantasy": 14, "History": 36, "Horror": 27, "Music": 10402,
+    "Mystery": 9648, "Romance": 10749, "Science Fiction": 878,
+    "TV Movie": 10770, "Thriller": 53, "War": 10752, "Western": 37
+}
 DECADES = {"2020s": ("2020-01-01", "2029-12-31"), "2010s": ("2010-01-01", "2019-12-31"), "2000s": ("2000-01-01", "2009-12-31"), "90s": ("1990-01-01", "1999-12-31"), "80s": ("1980-01-01", "1989-12-31"), "70s": ("1970-01-01", "1979-12-31")}
 SURPRISE_VIBES = ["mind-bending", "tearjerker", "funny but sad", "action-packed", "slow burn", "feel-good", "dark and gritty", "visually stunning", "twist ending", "nostalgic"]
 
@@ -340,6 +364,27 @@ def find_similar_callback(title):
     st.session_state.similar_target = title
 
 # 5. API Functions
+@st.cache_data(ttl=86400)
+def get_runtime_or_seasons(media_id, media_type):
+    try:
+        url = f"https://api.themoviedb.org/3/{media_type}/{media_id}?api_key={TMDB_API_KEY}"
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            if media_type == "movie":
+                runtime = data.get("runtime")
+                if runtime:
+                    h = runtime // 60
+                    m = runtime % 60
+                    return f"{h}h {m}m" if h > 0 else f"{m}m"
+            else:
+                seasons = data.get("number_of_seasons")
+                if seasons:
+                    return f"{seasons} Season{'s' if seasons > 1 else ''}"
+    except:
+        pass
+    return ""
+
 def get_watch_providers(media_id, media_type):
     try:
         url = f"https://api.themoviedb.org/3/{media_type}/{media_id}/watch/providers?api_key={TMDB_API_KEY}"
@@ -425,49 +470,74 @@ def fetch_full_details(media_id, media_type):
         pass
     return None
 
-def fetch_discover(media_type, genres, decades, min_rating, vibe=""):
-    try:
-        candidates = []
-        genre_ids = ",".join([str(GENRES[g]) for g in genres]) if genres else ""
-        date_ranges = [DECADES[d] for d in decades] if decades else [(None, None)]
-        
-        if vibe:
-            search_res = search_media(vibe)
-            if search_res:
-                for sr in search_res[:3]:
-                    if sr.get('title', '').lower() == vibe.lower() or sr.get('name', '').lower() == vibe.lower():
-                        rec_url = f"https://api.themoviedb.org/3/{sr.get('media_type')}/{sr.get('id')}/recommendations?api_key={TMDB_API_KEY}"
-                        rec_res = requests.get(rec_url, timeout=10)
-                        if rec_res.status_code == 200:
-                            candidates.extend(rec_res.json().get("results", [])[:15])
-                        break
-        
-        for start_date, end_date in date_ranges:
-            movie_url = f"https://api.themoviedb.org/3/discover/movie?api_key={TMDB_API_KEY}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte={min_rating}"
-            if genre_ids: movie_url += f"&with_genres={genre_ids}"
-            if start_date: movie_url += f"&primary_release_date.gte={start_date}&primary_release_date.lte={end_date}"
-            tv_url = f"https://api.themoviedb.org/3/discover/tv?api_key={TMDB_API_KEY}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte={min_rating}"
-            if genre_ids: tv_url += f"&with_genres={genre_ids}"
-            if start_date: tv_url += f"&first_air_date.gte={start_date}&first_air_date.lte={end_date}"
+def fetch_discover(media_type, genres, decades, min_rating, providers, vibe=""):
+    candidates = []
+    
+    # 🚨 FIX: Map movie genre IDs to TV genre IDs
+    TV_GENRE_MAP = {
+        28: 10759,  # Action -> Action & Adventure
+        12: 10759,  # Adventure -> Action & Adventure
+        878: 10765, # Sci-Fi -> Sci-Fi & Fantasy
+        14: 10765,  # Fantasy -> Sci-Fi & Fantasy
+        10752: 10768, # War -> War & Politics
+        16: 16, 35: 35, 80: 80, 99: 99, 18: 18, 10751: 10751, 9648: 9648, 37: 37
+    }
+    
+    movie_genre_ids = ",".join([str(GENRES[g]) for g in genres]) if genres else ""
+    
+    tv_genre_ids_list = []
+    for g in genres:
+        g_id = GENRES[g]
+        if g_id in TV_GENRE_MAP:
+            tv_genre_ids_list.append(str(TV_GENRE_MAP[g_id]))
             
-            if media_type in ["Movies", "Both"]:
-                res = requests.get(movie_url, timeout=10)
-                if res.status_code == 200: candidates.extend(res.json().get("results", [])[:10])
-            if media_type in ["TV Shows", "Both"]:
-                res = requests.get(tv_url, timeout=10)
-                if res.status_code == 200: candidates.extend(res.json().get("results", [])[:10])
-                
-        seen_ids = set()
-        unique_candidates = []
-        for m in candidates:
-            if m['id'] not in seen_ids:
-                unique_candidates.append(m)
-                seen_ids.add(m['id'])
-        return unique_candidates[:40]
-    except:
-        return []
+    tv_genre_ids = ",".join(list(set(tv_genre_ids_list))) if tv_genre_ids_list else ""
 
-def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_recs):
+    date_ranges = [DECADES[d] for d in decades] if decades else [(None, None)]
+    
+    if vibe:
+        search_res = search_media(vibe)
+        if search_res:
+            for sr in search_res[:3]:
+                if sr.get('title', '').lower() == vibe.lower() or sr.get('name', '').lower() == vibe.lower():
+                    rec_url = f"https://api.themoviedb.org/3/{sr.get('media_type')}/{sr.get('id')}/recommendations?api_key={TMDB_API_KEY}"
+                    rec_res = requests.get(rec_url, timeout=10)
+                    if rec_res.status_code == 200:
+                        candidates.extend(rec_res.json().get("results", [])[:15])
+                    break
+    
+    provider_ids = ",".join(str(PROVIDERS[p]) for p in providers) if providers else ""
+
+    for start_date, end_date in date_ranges:
+        # Fetch Movies
+        if media_type in ["Movies", "Both"]:
+            movie_url = f"https://api.themoviedb.org/3/discover/movie?api_key={TMDB_API_KEY}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte={min_rating}"
+            if movie_genre_ids: movie_url += f"&with_genres={movie_genre_ids}"
+            if start_date: movie_url += f"&primary_release_date.gte={start_date}&primary_release_date.lte={end_date}"
+            if provider_ids:
+                movie_url += f"&with_watch_providers={provider_ids}&watch_region={st.session_state.region}&with_watch_monetization_types=flatrate"
+            res = requests.get(movie_url, timeout=10)
+            if res.status_code == 200: candidates.extend(res.json().get("results", [])[:10])
+
+        # Fetch TV Shows
+        if media_type in ["TV Shows", "Both"]:
+            tv_url = f"https://api.themoviedb.org/3/discover/tv?api_key={TMDB_API_KEY}&sort_by=popularity.desc&vote_count.gte=50&vote_average.gte={min_rating}"
+            if tv_genre_ids: tv_url += f"&with_genres={tv_genre_ids}"
+            if start_date: tv_url += f"&first_air_date.gte={start_date}&first_air_date.lte={end_date}"
+            if provider_ids:
+                tv_url += f"&with_watch_providers={provider_ids}&watch_region={st.session_state.region}&with_watch_monetization_types=flatrate"
+            res = requests.get(tv_url, timeout=10)
+            if res.status_code == 200: candidates.extend(res.json().get("results", [])[:10])
+                
+    seen_ids = set()
+    unique_candidates = []
+    for m in candidates:
+        if m['id'] not in seen_ids:
+            unique_candidates.append(m)
+            seen_ids.add(m['id'])
+    return unique_candidates[:40]
+
+def get_ai_recommendation(vibe, extra_details, media_list, genres, decades, media_type, num_recs):
     try:
         client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY, timeout=15)
         media_list_text = ""
@@ -476,10 +546,14 @@ def get_ai_recommendation(vibe, media_list, genres, decades, media_type, num_rec
             date_val = m.get('release_date') or m.get('first_air_date') or 'Unknown'
             year = date_val[:4] if date_val != 'Unknown' else 'Unknown'
             media_list_text += f"Title: {title} ({year})\nOverview: {m.get('overview')}\n\n"
-        vibe_text = f"The user wants this vibe: '{vibe}'." if vibe else "Pick the most interesting ones."
+        
+        vibe_text = f"The user wants this core vibe: '{vibe}'." if vibe else ""
+        details_text = f"The user also specifically requested this: '{extra_details}'." if extra_details else ""
+        
         prompt = f"""
         The user is looking for a {', '.join(genres) if genres else 'Any'} {media_type} from the {', '.join(decades) if decades else 'Any'}.
         {vibe_text}
+        {details_text}
         Candidates: {media_list_text}
         Task: Select top {num_recs}. Output ONLY a valid JSON array: [{{"title": "Title", "reason": "Why it matches"}}]
         """
@@ -525,17 +599,16 @@ def show_similar_dialog(target_title):
         st.write("")
         st.write("")
         if st.button("❌ Close", key="close_sim_modal", width='stretch'):
-            st.session_state.similar_target = None
             st.rerun()
             
     st.write("---")
     
     with st.spinner("Finding matches..."):
-        candidates = fetch_discover("Both", [], [], min_rating, target_title)
+        candidates = fetch_discover("Both", [], [], min_rating, [], target_title)
         candidates = [m for m in candidates if target_title.lower() not in (m.get('title') or m.get('name') or '').lower()]
         
         if candidates:
-            recs = get_ai_recommendation(target_title, candidates, [], [], "Both", 5)
+            recs = get_ai_recommendation(target_title, "", candidates, [], [], "Both", 5)
             if recs is None:
                 st.error("🚨 Our AI is a bit busy right now. Please close this and try again in a few seconds.")
                 return
@@ -571,7 +644,7 @@ def show_similar_dialog(target_title):
                         if m_id:
                             is_saved = any(item['id'] == m_id for item in st.session_state.watchlist)
                             if st.button("Save", key=f"dlg_save_{m_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
-                                toggle_watchlist(m_id, t, poster_url, rt, p_type)
+                                toggle_watchlist(m_id, t, poster_url, rt, p_type, "")
                                 st.rerun()
                     st.divider()
             else:
@@ -589,6 +662,11 @@ def show_details(m, media_type):
     with col2:
         st.markdown(f"## {title}")
         st.markdown(f"⭐ **{rating}**")
+        
+        extra_info = get_runtime_or_seasons(m['id'], p_type)
+        if extra_info:
+            st.markdown(f"⏱️ **{extra_info}**")
+            
         director, cast = get_credits(m['id'], p_type)
         st.markdown(f"🎬 **Dir/Creator:** {director} | 🎭 **Cast:** {cast}")
         st.write(m.get('overview', 'No overview available.'))
@@ -602,7 +680,7 @@ def show_details(m, media_type):
         with c2:
             is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
             if st.button("", key=f"modal_save_{m['id']}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
-                toggle_watchlist(m['id'], title, poster, rating, p_type)
+                toggle_watchlist(m['id'], title, poster, rating, p_type, extra_info)
         with c3:
             if st.button("", key=f"modal_sim_{m['id']}", icon=":material/auto_awesome:", help="Find Similar", width='stretch'):
                 st.session_state.similar_target = title
@@ -621,6 +699,7 @@ def do_surprise():
     st.session_state.decades = [random.choice(list(DECADES.keys()))]
     st.session_state.min_rating = random.choice([5.0, 6.0, 7.0])
     st.session_state.vibe = random.choice(SURPRISE_VIBES)
+    st.session_state.extra_details = ""
     st.session_state.run_search = True
     st.session_state.is_surprise = True
 
@@ -636,8 +715,10 @@ if current_tab == "Trending":
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
+            
+            runtime_str = get_runtime_or_seasons(m['id'], "movie")
             st.markdown(f"<div class='tv-title'>{m.get('title')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem;'>⭐ {m.get('vote_average', 0):.1f} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -646,7 +727,7 @@ if current_tab == "Trending":
             with c2:
                 is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                 if st.button("", key=f"s_m_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                    toggle_watchlist(m['id'], m.get('title'), poster, f"{m.get('vote_average', 0):.1f}", "movie")
+                    toggle_watchlist(m['id'], m.get('title'), poster, f"{m.get('vote_average', 0):.1f}", "movie", runtime_str)
             with c3:
                 st.button("", key=f"sim_m_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('title'),))
             st.markdown('</div>', unsafe_allow_html=True)
@@ -658,8 +739,10 @@ if current_tab == "Trending":
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
+            
+            runtime_str = get_runtime_or_seasons(m['id'], "tv")
             st.markdown(f"<div class='tv-title'>{m.get('name')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {m.get('vote_average', 0):.1f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem;'>⭐ {m.get('vote_average', 0):.1f} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -668,7 +751,7 @@ if current_tab == "Trending":
             with c2:
                 is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                 if st.button("", key=f"s_tv_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                    toggle_watchlist(m['id'], m.get('name'), poster, f"{m.get('vote_average', 0):.1f}", "tv")
+                    toggle_watchlist(m['id'], m.get('name'), poster, f"{m.get('vote_average', 0):.1f}", "tv", runtime_str)
             with c3:
                 st.button("", key=f"sim_tv_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('name'),))
             st.markdown('</div>', unsafe_allow_html=True)
@@ -694,8 +777,9 @@ elif current_tab == "Search":
                         rating = f"{m.get('vote_average', 0):.1f}" if m.get('vote_average') else "N/A"
                         p_type = m.get('media_type')
                         
+                        runtime_str = get_runtime_or_seasons(m['id'], p_type)
                         st.markdown(f"<div class='tv-title'>{title}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {rating}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='color:#ffd700; font-size:0.85rem;'>⭐ {rating} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
                         
                         c1, c2, c3 = st.columns(3)
                         with c1:
@@ -704,7 +788,7 @@ elif current_tab == "Search":
                         with c2:
                             is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                             if st.button("", key=f"s_srch_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                                toggle_watchlist(m['id'], title, poster, rating, p_type)
+                                toggle_watchlist(m['id'], title, poster, rating, p_type, runtime_str)
                         with c3:
                             st.button("", key=f"sim_srch_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,))
                         st.markdown('</div>', unsafe_allow_html=True)
@@ -724,8 +808,10 @@ elif current_tab == "Upcoming":
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
+            
+            runtime_str = get_runtime_or_seasons(m['id'], "movie")
             st.markdown(f"<div class='tv-title'>{m.get('title')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('release_date', 'TBA')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:#888; font-size:0.85rem;'>📅 {m.get('release_date', 'TBA')} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -734,7 +820,7 @@ elif current_tab == "Upcoming":
             with c2:
                 is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                 if st.button("", key=f"us_m_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                    toggle_watchlist(m['id'], m.get('title'), poster, f"{m.get('vote_average', 0):.1f}", "movie")
+                    toggle_watchlist(m['id'], m.get('title'), poster, f"{m.get('vote_average', 0):.1f}", "movie", runtime_str)
             with c3:
                 st.button("", key=f"sim_up_m_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('title'),))
             st.markdown('</div>', unsafe_allow_html=True)
@@ -746,8 +832,10 @@ elif current_tab == "Upcoming":
             st.markdown('<div class="tv-card">', unsafe_allow_html=True)
             poster = f"https://image.tmdb.org/t/p/w500{m['poster_path']}" if m.get('poster_path') else "https://via.placeholder.com/500x750"
             st.image(poster, width='stretch')
+            
+            runtime_str = get_runtime_or_seasons(m['id'], "tv")
             st.markdown(f"<div class='tv-title'>{m.get('name')}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='color:#888; font-size:0.85rem; margin-bottom:8px;'>📅 {m.get('first_air_date', 'TBA')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='color:#888; font-size:0.85rem;'>📅 {m.get('first_air_date', 'TBA')} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -756,7 +844,7 @@ elif current_tab == "Upcoming":
             with c2:
                 is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                 if st.button("", key=f"us_tv_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                    toggle_watchlist(m['id'], m.get('name'), poster, f"{m.get('vote_average', 0):.1f}", "tv")
+                    toggle_watchlist(m['id'], m.get('name'), poster, f"{m.get('vote_average', 0):.1f}", "tv", runtime_str)
             with c3:
                 st.button("", key=f"sim_up_tv_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(m.get('name'),))
             st.markdown('</div>', unsafe_allow_html=True)
@@ -786,8 +874,9 @@ elif current_tab == "Actors":
                             rating = f"{m.get('vote_average', 0):.1f}" if m.get('vote_average') else "N/A"
                             p_type = "movie"
                             
+                            runtime_str = get_runtime_or_seasons(m['id'], p_type)
                             st.markdown(f"<div class='tv-title'>{title}</div>", unsafe_allow_html=True)
-                            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {rating}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='color:#ffd700; font-size:0.85rem;'>⭐ {rating} | <span style='color:#aaa;'>{runtime_str}</span></div>", unsafe_allow_html=True)
                             
                             c1, c2, c3 = st.columns(3)
                             with c1:
@@ -796,7 +885,7 @@ elif current_tab == "Actors":
                             with c2:
                                 is_saved = any(item['id'] == m['id'] for item in st.session_state.watchlist)
                                 if st.button("", key=f"s_act_{m['id']}_{i}", icon=":material/check:" if is_saved else ":material/add:", help="Save"):
-                                    toggle_watchlist(m['id'], title, poster, rating, p_type)
+                                    toggle_watchlist(m['id'], title, poster, rating, p_type, runtime_str)
                             with c3:
                                 st.button("", key=f"sim_act_{m['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(title,))
                             st.markdown('</div>', unsafe_allow_html=True)
@@ -813,8 +902,14 @@ elif current_tab == "Vibe Matcher":
         col4, col5 = st.columns(2)
         with col4: st.slider("Min Rating", 0.0, 10.0, 6.0, 0.5, key="min_rating")
         with col5: st.slider("Results", 3, 10, 5, key="num_recs")
+        
+        st.multiselect("Streaming Services (Optional)", options=list(PROVIDERS.keys()), key="selected_providers")
     
-    st.text_input("Vibe", placeholder="e.g. 'lonely space' or a movie title...", key="vibe")
+    col_vibe, col_details = st.columns(2)
+    with col_vibe:
+        st.text_input("Core Vibe", placeholder="e.g. 'happy, comforting'...", key="vibe")
+    with col_details:
+        st.text_input("Specific Details (Optional)", placeholder="e.g. 'about farming'...", key="extra_details")
     
     c1, c2 = st.columns(2)
     with c1: st.markdown('<div class="main-btn">', unsafe_allow_html=True); st.button("Find Match", on_click=do_search); st.markdown('</div>', unsafe_allow_html=True)
@@ -823,22 +918,41 @@ elif current_tab == "Vibe Matcher":
     if st.session_state.run_search:
         st.session_state.run_search = False 
         with st.spinner("Searching..."):
-            candidates = fetch_discover(st.session_state.media_type, st.session_state.genres, st.session_state.decades, st.session_state.min_rating, st.session_state.vibe)
-            if candidates:
-                recommendations = get_ai_recommendation(st.session_state.vibe, candidates, st.session_state.genres, st.session_state.decades, st.session_state.media_type, st.session_state.num_recs)
+            try:
+                candidates = fetch_discover(
+                    st.session_state.media_type, 
+                    st.session_state.genres, 
+                    st.session_state.decades, 
+                    st.session_state.min_rating, 
+                    st.session_state.selected_providers, 
+                    st.session_state.vibe
+                )
                 
-                if recommendations is None:
-                    st.error("🚨 Our AI is currently handling a lot of requests. Please wait a few seconds and try again!")
-                    st.session_state.current_recommendations = []
-                elif not recommendations:
-                    st.warning("No matches found. Try adjusting your filters or vibe.")
+                if not candidates:
+                    st.warning("No matches found for those filters. Try removing some filters (like Genres or Streaming Services) or lowering the rating.")
                     st.session_state.current_recommendations = []
                 else:
-                    st.session_state.current_candidates = candidates
-                    st.session_state.current_recommendations = recommendations
-            else:
-                st.error("🚨 Could not connect to the movie database. Please check your internet or try again later.")
-                st.session_state.current_recommendations = []
+                    recommendations = get_ai_recommendation(
+                        st.session_state.vibe, 
+                        st.session_state.extra_details, 
+                        candidates, 
+                        st.session_state.genres, 
+                        st.session_state.decades, 
+                        st.session_state.media_type, 
+                        st.session_state.num_recs
+                    )
+                    
+                    if recommendations is None:
+                        st.error("🚨 Our AI is currently handling a lot of requests. Please wait a few seconds and try again!")
+                        st.session_state.current_recommendations = []
+                    elif not recommendations:
+                        st.warning("The AI couldn't find a good match among the candidates. Try adjusting your filters or vibe.")
+                        st.session_state.current_recommendations = []
+                    else:
+                        st.session_state.current_candidates = candidates
+                        st.session_state.current_recommendations = recommendations
+            except Exception as e:
+                st.error(f"An error occurred while searching: {e}")
 
     if st.session_state.current_recommendations:
         st.markdown(f"### Top Matches")
@@ -861,18 +975,7 @@ elif current_tab == "Vibe Matcher":
                     break
             
             p_type = "tv" if is_tv else "movie"
-            providers_text = "Not available"
-            trailer_html = ""
-            credits_html = ""
-            
-            if media_id:
-                providers_text = get_watch_providers(media_id, p_type)
-                trailer_url = get_trailer_url(media_id, p_type)
-                director, cast = get_credits(media_id, p_type)
-                credits_html = f"<p style='color: #aaa; font-size: 0.95rem; margin-top: -5px; margin-bottom: 15px;'>🎬 <b>Dir/Creator:</b> {director} | 🎭 <b>Cast:</b> {cast}</p>"
-                
-                if trailer_url:
-                    trailer_html = f'<a href="{trailer_url}" target="_blank" class="trailer-btn">▶️ Watch Trailer</a>'
+            runtime_str = get_runtime_or_seasons(media_id, p_type) if media_id else ""
 
             st.html(f"""
             <div class="movie-card">
@@ -886,20 +989,11 @@ elif current_tab == "Vibe Matcher":
                                 <span style="color: #ffd700; font-size: 1.3rem;">⭐</span>
                                 <span style="color: #ffd700; font-weight: bold; font-size: 1.1rem;">{rating}</span>
                             </div>
-                            <span style="color: #888; font-size: 0.9rem;">TMDB Rating</span>
+                            <span style="color: #888; font-size: 0.9rem;">|</span>
+                            <span style="color: #aaa; font-size: 0.9rem; font-weight: bold;">{runtime_str}</span>
                         </div>
-                        
-                        {credits_html}
                         
                         <p style="color: #ccc; font-size: 1.05rem; line-height: 1.5; margin-bottom: 15px;">{reason}</p>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-                            <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border-left: 4px solid #ff4b4b; flex-grow: 1;">
-                                <span style="color: #aaa; font-size: 0.9rem; font-weight: bold;">WHERE TO WATCH ({COUNTRIES[st.session_state.region]}):</span><br>
-                                <span style="color: #fff; font-size: 0.95rem;">{providers_text}</span>
-                            </div>
-                            {trailer_html}
-                        </div>
                     </div>
                 </div>
             </div>
@@ -911,7 +1005,7 @@ elif current_tab == "Vibe Matcher":
                     is_saved = any(item['id'] == media_id for item in st.session_state.watchlist)
                     st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
                     if st.button("Saved" if is_saved else "Save", key=f"save_v_{media_id}_{i}", icon=":material/check:" if is_saved else ":material/add:", width='stretch'):
-                        toggle_watchlist(media_id, title, poster_url, rating, p_type)
+                        toggle_watchlist(media_id, title, poster_url, rating, p_type, runtime_str)
                     st.markdown('</div>', unsafe_allow_html=True)
                 with b2:
                     st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
@@ -945,13 +1039,15 @@ elif current_tab == "Watchlist":
             if i % 5 == 0: cols = st.columns(5)
             with cols[i % 5]:
                 st.image(item['poster'], width='stretch')
+                
+                extra_info = item.get("extra_info", "")
                 st.markdown(f"<div class='tv-title'>{item['title']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<div style='color:#ffd700; font-size:0.85rem; margin-bottom:8px;'>⭐ {item['rating']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='color:#ffd700; font-size:0.85rem;'>⭐ {item['rating']} | <span style='color:#aaa;'>{extra_info}</span></div>", unsafe_allow_html=True)
                 
                 c1, c2, c3 = st.columns(3)
                 with c1:
                     if st.button("", key=f"rm_{item['id']}_{i}", icon=":material/delete:", help="Remove"):
-                        toggle_watchlist(item['id'], item['title'], item['poster'], item['rating'], item['type'])
+                        toggle_watchlist(item['id'], item['title'], item['poster'], item['rating'], item['type'], extra_info)
                 with c2:
                     st.button("", key=f"sim_w_{item['id']}_{i}", icon=":material/auto_awesome:", help="Find Similar", on_click=find_similar_callback, args=(item['title'],))
                 with c3:
@@ -964,10 +1060,11 @@ elif current_tab == "Watchlist":
                                 st.error("Could not load details.")
 
 # ==========================================
-# 🚨 DIALOG TRIGGER
+# 🚨 DIALOG TRIGGER (FIXED)
 # ==========================================
 if st.session_state.get("similar_target"):
     target = st.session_state.similar_target
+    st.session_state.similar_target = None  # Clear it so it doesn't pop up again
     show_similar_dialog(target)
 
 # ==========================================
